@@ -78,10 +78,11 @@
 - [x] CORS configured for frontend only
 
 ### ⚠️ Still Needed
-- [ ] Rate limiting on auth endpoints
+- [x] Rate limiting on auth endpoints (5/min register, 10/min login)
 - [ ] File upload MIME validation
 - [ ] Input sanitization for tool arguments
-- [ ] Structured error responses
+- [x] Structured error responses (rate limit exceeded handler)
+- [x] Health check endpoints (/health/db, /health/ai)
 
 ---
 
@@ -103,7 +104,7 @@
 ### ⚠️ Still Needed
 - [ ] Production docker-compose.yml
 - [ ] CI/CD pipeline (.github/workflows)
-- [ ] Monitoring/health check endpoints
+- [x] Monitoring/health check endpoints (/health, /health/db, /health/ai)
 - [ ] Database backup strategy
 
 ---
@@ -196,7 +197,13 @@ docker compose up -d --build
 
 # 4. Wait for services (30-60s), then verify
 curl http://localhost:8000/health
-# Should return: {"status":"ok","database":"connected","ai_provider":"nebius"}
+# Should return: {"status":"healthy"}
+
+curl http://localhost:8000/health/db
+# Should return: {"status":"ok","database":"connected"}
+
+curl http://localhost:8000/health/ai
+# Should return: {"status":"ok","ai_provider":"nebius"}
 
 # 5. Test frontend
 open http://localhost:3000
@@ -261,4 +268,4 @@ python -m pytest tests/ -v
 
 ---
 
-**Status:** Ready for Phase 2 fixes → Testing → Demo Recording → Submission
+**Status:** Phase 2 complete → Testing → Demo Recording → Submission
