@@ -1,22 +1,28 @@
 import json
-import os
 import httpx
 from typing import List, Dict, Any, Optional, AsyncGenerator
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, OpenAIError
 from app.config import settings
 from app.schemas import ToolCall, ToolResult
+
+
+class EmbeddingError(Exception):
+    """Raised when embedding generation fails"""
+    pass
 
 
 class AIService:
     def __init__(self):
         # Create custom httpx client without proxies to avoid version conflicts
-        http_client = httpx.AsyncClient()
+        http_client = httpx.AsyncClient(timeout=60.0)
         self.client = AsyncOpenAI(
             api_key=settings.NEBIUS_API_KEY,
             base_url=settings.NEBIUS_BASE_URL,
             http_client=http_client,
         )
-        self.model = settings.NVIDIA_MODEL_ID
+        self.chat_model = settings.NVIDIA_CHAT_MODEL
+        self.embedding_model = settings.NVIDIA_EMBEDDING_MODEL
+        self.embedding_dimension = 1024  # NV-Embed-v2 outputs 1024 dimensions
 
     # Tool definitions for the AI
     TOOLS = [
@@ -178,17 +184,21 @@ Be helpful, precise, and transparent."""
         if tools is None:
             tools = self.TOOLS
 
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=all_messages,
-            tools=tools,
-            tool_choice="auto",
-            stream=stream,
-            temperature=0.3,
-            max_tokens=4000,
-        )
-
-        return response
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.chat_model,
+                messages=all_messages,
+                tools=tools,
+                tool_choice="auto",
+                stream=stream,
+                temperature=0.3,
+                max_tokens=4000,
+            )
+            return response
+        except OpenAIError as e:
+            raise RuntimeError(f"AI provider error: {str(e)}") from e
+        except Exception as e:
+            raise RuntimeError(f"Unexpected error during chat completion: {str(e)}") from e
 
     async def chat_completion_stream(
         self,
@@ -201,19 +211,24 @@ Be helpful, precise, and transparent."""
         if tools is None:
             tools = self.TOOLS
 
-        stream = await self.client.chat.completions.create(
-            model=self.model,
-            messages=all_messages,
-            tools=tools,
-            tool_choice="auto",
-            stream=True,
-            temperature=0.3,
-            max_tokens=4000,
-        )
+        try:
+            stream = await self.client.chat.completions.create(
+                model=self.chat_model,
+                messages=all_messages,
+                tools=tools,
+                tool_choice="auto",
+                stream=True,
+                temperature=0.3,
+                max_tokens=4000,
+            )
 
-        async for chunk in stream:
-            if chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+            async for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+        except OpenAIError as e:
+            raise RuntimeError(f"AI provider error: {str(e)}") from e
+        except Exception as e:
+            raise RuntimeError(f"Unexpected error during streaming: {str(e)}") from e
 
     def parse_tool_calls(self, response) -> List[ToolCall]:
         """Parse tool calls from response"""
@@ -230,16 +245,57 @@ Be helpful, precise, and transparent."""
         return tool_calls
 
     async def get_embedding(self, text: str) -> List[float]:
-        """Get embedding for text using the model"""
+        """Get embedding for text using the configured model.
+        
+        Raises:
+            EmbeddingError: If embedding generation fails or returns invalid dimensions
+            ValueError: If input text is empty or invalid
+        """
+        if not text or not text.strip():
+            raise ValueError("Input text cannot be empty")
+        
+        # Truncate if too long (most embedding models have token limits)
+        max_chars = 8000  # Conservative limit for NV-Embed-v2
+        if len(text) > max_chars:
+            text = text[:max_chars]
+
         try:
             response = await self.client.embeddings.create(
-                model="nvidia/nv-embed-v1",  # NVIDIA embedding model
+                model=self.embedding_model,
                 input=text,
             )
-            return response.data[0].embedding
+            
+            if not response.data or not response.data[0].embedding:
+                raise EmbeddingError("Empty embedding returned from provider")
+            
+            embedding = response.data[0].embedding
+            
+            # Validate dimension
+            if len(embedding) != self.embedding_dimension:
+                raise EmbeddingError(
+                    f"Embedding dimension mismatch: expected {self.embedding_dimension}, got {len(embedding)}. "
+                    f"Check NVIDIA_EMBEDDING_MODEL config matches database schema."
+                )
+            
+            return embedding
+            
+        except OpenAIError as e:
+            raise EmbeddingError(f"Embedding API error: {str(e)}") from e
+        except ValueError:
+            raise
+        except Exception as e:
+            raise EmbeddingError(f"Unexpected embedding error: {str(e)}") from e
+
+    async def verify_embedding_dimension(self) -> bool:
+        """Verify embedding model returns expected dimensions.
+        
+        Useful for startup health checks.
+        """
+        try:
+            test_embedding = await self.get_embedding("test")
+            return len(test_embedding) == self.embedding_dimension
         except Exception:
-            # Fallback: return zero vector if embedding fails
-            return [0.0] * 384
+            return False
 
 
 ai_service = AIService()

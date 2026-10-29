@@ -6,6 +6,9 @@ from pgvector.sqlalchemy import Vector
 
 Base = declarative_base()
 
+# Embedding dimension for NVIDIA NV-Embed-v2
+EMBEDDING_DIMENSION = 1024
+
 
 class User(Base):
     __tablename__ = "users"
@@ -15,6 +18,7 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(255))
     is_active = Column(Boolean, default=True)
+    memory_consent = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -77,7 +81,7 @@ class Memory(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     content = Column(Text, nullable=False)
     memory_type = Column(String(50), default="preference")  # preference, fact, goal, etc.
-    embedding = Column(Vector(384), nullable=True)  # For semantic search
+    embedding = Column(Vector(EMBEDDING_DIMENSION), nullable=True)  # For semantic search
     consented = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -111,7 +115,7 @@ class DocumentChunk(Base):
     document_id = Column(Integer, ForeignKey("documents.id"), nullable=False)
     chunk_index = Column(Integer, nullable=False)
     content = Column(Text, nullable=False)
-    embedding = Column(Vector(384), nullable=True)
+    embedding = Column(Vector(EMBEDDING_DIMENSION), nullable=True)
     page_number = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

@@ -174,13 +174,16 @@ async def execute_list_tasks(arguments: Dict[str, Any], user_id: int, db: AsyncS
 
 async def execute_save_memory(arguments: Dict[str, Any], user_id: int, db: AsyncSession) -> ToolResult:
     try:
-        if not arguments.get("consented", False):
+        # Check user's memory consent from database (not from tool argument)
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user or not user.memory_consent:
             return ToolResult(
                 tool_call_id="",
                 name="save_memory",
                 result=None,
                 success=False,
-                error="User consent required to save memory",
+                error="User consent required to save memory. Enable memory consent in your profile settings.",
             )
 
         embedding = await ai_service.get_embedding(arguments["content"])

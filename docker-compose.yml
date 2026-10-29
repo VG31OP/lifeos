@@ -27,9 +27,9 @@ services:
       DATABASE_URL: postgresql+asyncpg://lifeos:lifeos@postgres:5432/lifeos
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
       NEBIUS_API_KEY: ${NEBIUS_API_KEY}
-      NEBIUS_BASE_URL: https://api.studio.nebius.ai/v1
-      NEBIUS_MODEL: nvidia/Llama-3.1-Nemotron-70B-Instruct
-      EMBEDDING_MODEL: nvidia/NV-Embed-v2
+        NEBIUS_API_URL: https://api.studio.nebius.ai/v1
+        NVIDIA_CHAT_MODEL: nvidia/Llama-3.1-Nemotron-70B-Instruct
+        NVIDIA_EMBEDDING_MODEL: nvidia/NV-Embed-v2
       CORS_ORIGINS: http://localhost:3000
     ports:
       - "8000:8000"

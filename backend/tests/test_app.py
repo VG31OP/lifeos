@@ -13,6 +13,6 @@ def test_app_creation():
 
 def test_settings():
     """Test that settings are loaded."""
-    assert settings.NVIDIA_MODEL_ID == "nvidia/Llama-3.1-Nemotron-70B-Instruct"
+    assert settings.NVIDIA_CHAT_MODEL == "nvidia/Llama-3.1-Nemotron-70B-Instruct"
     assert settings.DATABASE_URL is not None
     assert settings.SECRET_KEY is not None
