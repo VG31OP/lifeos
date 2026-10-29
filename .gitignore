@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+backend/venv/
+backend/__pycache__/
+backend/.pytest_cache/
+*.pyc
+
+# Environment
+backend/.env
+frontend/.env.local
+frontend/.env.production
+
+# Build outputs
+frontend/.next/
+frontend/out/
+backend/dist/
+
+# Database
+*.db
+*.sqlite
+postgres_data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+.coverage
+.pytest_cache/
+
+# Docker
+docker-compose.override.yml
+
+# Misc
+*.tmp
+*.temp
