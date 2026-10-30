@@ -143,7 +143,9 @@ async def upload_document(
         file_path.unlink(missing_ok=True)
         raise
 
-    # Process document in background (simplified - in production use background tasks)
+    document_id = document.id
+
+    # Process document in background (simplified - in production use BackgroundTasks)
     try:
         extracted_text = extract_text_from_file(file_path, file_ext)
         if not extracted_text.strip():
@@ -169,13 +171,12 @@ async def upload_document(
                     content=chunk_content,
                     embedding=embedding,
                 ))
-
         await db.commit()
         await db.refresh(document)
-        document_id = document.id
+        await db.refresh(document)
 
     except Exception as error:
-        logger.exception("Document processing failed for document %s", document.id)
+        logger.exception("Document processing failed for document %s", document_id)
         await db.rollback()
         await db.execute(
             update(Document)

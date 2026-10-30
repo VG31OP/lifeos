@@ -111,12 +111,7 @@ npm run dev
 
 ## 🧪 Verification status
 
-The backend tests cover settings validation, API imports, tool-argument schemas, and document input validation. PostgreSQL-backed endpoint tests run in CI against pgvector:
-
-```bash
-cd backend
-pytest -q
-```
+The backend test suite includes settings validation, API imports, tool-argument schemas, document input validation, and PostgreSQL-backed endpoint tests. CI runs database-backed cases against pgvector. In the latest available run (#14), migrations and the frontend production build passed, but the backend unit-test step was canceled at its time bound and the integration tests were not reached. The CI workflow now isolates backend test modules and integration cases; a passing backend result is still pending.
 
 No live Nebius chat or embedding response has been verified in this workspace. `/health/ai` only reports success after real chat and embedding requests succeed; without a valid `NEBIUS_API_KEY`, it returns `503` and marks provider checks as not configured.
 

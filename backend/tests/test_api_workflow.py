@@ -88,3 +88,28 @@ def test_memory_endpoint_requires_explicit_consent(monkeypatch):
         assert saved.status_code == 200
         assert saved.json()["consented"] is True
         assert len(client.get("/memories", headers=headers).json()) == 1
+
+
+def test_document_processing_failure_is_recorded(monkeypatch):
+    async def fail_embeddings(_: list[str]) -> list[list[float]]:
+        raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(ai_service, "get_embeddings", fail_embeddings)
+    with TestClient(app) as client:
+        token = create_account(client, f"document-{uuid.uuid4()}@example.test")
+        headers = {"Authorization": f"Bearer {token}"}
+
+        failed = client.post(
+            "/documents/upload",
+            headers=headers,
+            files={"file": ("notes.txt", b"Document content", "text/plain")},
+        )
+        assert failed.status_code == 422
+
+        documents = client.get("/documents", headers=headers)
+        assert documents.status_code == 200
+        document = documents.json()[0]
+        assert document["processing_status"] == "failed"
+
+        deleted = client.delete(f"/documents/{document['id']}", headers=headers)
+        assert deleted.status_code == 200

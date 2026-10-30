@@ -11,6 +11,7 @@ permissions:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       APP_ENV: test
       DATABASE_URL: postgresql+asyncpg://lifeos:lifeos@localhost:5432/lifeos
@@ -46,15 +47,34 @@ jobs:
       - name: Run database migrations
         working-directory: backend
         run: alembic upgrade head
-      - name: Run backend unit tests
+      - name: Test backend app creation
         working-directory: backend
-        run: timeout --foreground --kill-after=5s 45s pytest -vv --tb=short --ignore=tests/test_api_workflow.py
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_app.py
+      - name: Test settings validation
+        working-directory: backend
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_config.py
+      - name: Test tool argument validation
+        working-directory: backend
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_tool_arguments.py
+      - name: Test document validation
+        working-directory: backend
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_document_validation.py
       - name: Test task API integration
         working-directory: backend
-        run: timeout --foreground --kill-after=5s 45s pytest -vv --tb=short tests/test_api_workflow.py::test_registration_login_task_crud_and_user_isolation
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_api_workflow.py::test_registration_login_task_crud_and_user_isolation
       - name: Test memory consent integration
         working-directory: backend
-        run: timeout --foreground --kill-after=5s 45s pytest -vv --tb=short tests/test_api_workflow.py::test_memory_endpoint_requires_explicit_consent
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_api_workflow.py::test_memory_endpoint_requires_explicit_consent
+      - name: Test document processing failure recovery
+        working-directory: backend
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_api_workflow.py::test_document_processing_failure_is_recorded
 
   frontend:
     runs-on: ubuntu-latest

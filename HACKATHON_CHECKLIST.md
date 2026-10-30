@@ -3,22 +3,22 @@
 **Hackathon:** Nebius x NVIDIA Global AI Hackathon 2026
 **Project:** LifeOS - Personal AI Operating System
 **Repository:** https://github.com/VG31OP/lifeos
-**Current status:** audit fixes are in progress; current revision awaits CI and runtime verification. Live Nebius verification requires valid credentials and external provider access.
+**Current status:** audit work is in progress. CI run #14 passed migrations and the frontend build, but its backend unit-test step was canceled at the time bound; API integration tests were not reached. The updated per-module workflow is awaiting a run. Live Nebius verification requires valid credentials and external provider access.
 
 ---
 
 ## Verified in this workspace
 
 ### Core app and repo health
-- [ ] Current audit revision passes backend imports and CI tests
-- [ ] Current audit changes pass backend tests and CI (re-run after these changes)
+- [ ] Current per-module backend CI and PostgreSQL integration tests pass
+- [ ] Document-processing failure recovery is verified in CI
 - [x] Environment templates were aligned and sanitized
 - [x] Documentation and submission references were updated to reflect honest status
 
 ### Backend foundations
 - [x] FastAPI app structure is intact
 - [x] JWT and auth config can initialize with safe local defaults
-- [x] Config validation rejects placeholder secrets (covered by focused settings tests)
+- [ ] Config validation rejects placeholder secrets (focused tests exist; current audit CI result is pending)
 - [ ] Docker Compose services and migrations verified on current revision
 
 ### Documentation and audit trail
@@ -43,14 +43,9 @@ These items are not claimed as complete without a real user-supplied `NEBIUS_API
 
 ---
 
-## Validation commands run
+## Latest CI evidence
 
-```bash
-cd backend
-pytest -q
-```
-
-The most recent completed CI run passed before the current audit changes. The expanded suite and migrations must pass on the current revision before claiming final verification.
+CI run #14 ([details](https://github.com/VG31OP/lifeos/actions/runs/41070322368)) ran on commit `450b0bc`. The migration step passed and the frontend job succeeded in 35 seconds. The backend unit-test step was canceled at its 45-second bound; integration tests did not run. No backend test pass is claimed. The workflow now isolates backend test modules and integration cases for the next run. Do not rerun the broad suite locally in this environment; use bounded CI results.
 
 ---
 
@@ -74,4 +69,4 @@ The most recent completed CI run passed before the current audit changes. The ex
 
 ## Final note
 
-This repository is in a stronger, more honest submission-ready state than it was at baseline: the local configuration and backend smoke checks are valid, and the project clearly identifies the remaining external work that depends on valid credentials or a deployed environment.
+The repository includes substantial readiness fixes, but it is not yet verified as submission-ready. Keep backend tests, Docker runtime, live provider inference, the complete workflow, and demo/deployment evidence unchecked until each is actually demonstrated.
