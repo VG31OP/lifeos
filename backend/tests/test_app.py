@@ -1,6 +1,7 @@
 """Test configuration and basic imports."""
 
 import pytest
+
 from app.main import app
 from app.config import settings
 

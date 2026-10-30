@@ -1,7 +1,7 @@
 import secrets
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,6 +19,7 @@ def _is_placeholder_value(value: str) -> bool:
 
     placeholder_tokens = (
         "replace-me",
+        "replace-with",
         "change-me",
         "changeme",
         "your-secret",
@@ -39,11 +40,13 @@ def _default_nebius_key() -> str:
 
 
 class Settings(BaseSettings):
+    APP_ENV: Literal["development", "production", "test"] = "production"
+
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://lifeos:lifeos@localhost:5432/lifeos"
 
     # JWT
-    SECRET_KEY: str = Field(default_factory=_default_secret_key)
+    SECRET_KEY: str = Field(default="", validate_default=True)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
@@ -72,8 +75,10 @@ class Settings(BaseSettings):
 
     @field_validator("SECRET_KEY")
     @classmethod
-    def validate_secret_key(cls, v: str) -> str:
-        normalized = v.strip()
+    def validate_secret_key(cls, v: str, info: ValidationInfo) -> str:
+        normalized = (v or "").strip()
+        if not normalized and info.data.get("APP_ENV") == "development":
+            return _default_secret_key()
         if _is_placeholder_value(normalized) or len(normalized) < 32:
             raise ValueError("SECRET_KEY must be set to a non-placeholder value with at least 32 characters.")
         return normalized
@@ -88,9 +93,13 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL")
     @classmethod
     def validate_database_url(cls, v: str) -> str:
-        if not v or "******" in v or "<your-" in v.lower():
-            return "postgresql+asyncpg://lifeos:lifeos@localhost:5432/lifeos"
-        return v
-
+        normalized = v.strip()
+        lowered = normalized.lower()
+        if not normalized or any(
+            placeholder in lowered
+            for placeholder in ("******", "<your-", "your-", "replace-me", "change-me", "changeme", "placeholder")
+        ):
+            raise ValueError("DATABASE_URL must be set to a non-placeholder connection string.")
+        return normalized
 
 settings = Settings()

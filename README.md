@@ -57,18 +57,18 @@ lifeos/
 cp backend/.env.example backend/.env
 ```
 
-Then set at minimum:
+Generate a secure JWT secret:
 
 ```bash
-SECRET_KEY=replace-with-a-long-random-string
-NEBIUS_API_KEY=your-nebius-api-key
-DATABASE_URL=postgresql+asyncpg://lifeos:lifeos@localhost:5432/lifeos
+python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
+
+Put the generated value in `backend/.env` as `SECRET_KEY`. The documented placeholder is rejected. For live AI features, also replace `NEBIUS_API_KEY` with a valid Nebius AI Studio key.
 
 ### 2) Start with Docker (recommended)
 
 ```bash
-docker compose up --build
+docker compose --env-file backend/.env up --build
 ```
 
 - Frontend: http://localhost:3000

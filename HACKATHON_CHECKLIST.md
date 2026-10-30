@@ -1,24 +1,24 @@
 # LifeOS Hackathon Submission Checklist
 
-**Hackathon:** Nebius × NVIDIA Global AI Hackathon 2026
+**Hackathon:** Nebius x NVIDIA Global AI Hackathon 2026
 **Project:** LifeOS - Personal AI Operating System
 **Repository:** https://github.com/VG31OP/lifeos
 **Current status:** repository-level local validation complete; live Nebius verification remains blocked by required credentials and external provider access.
 
 ---
 
-## ? Verified in this workspace
+## Verified in this workspace
 
 ### Core app and repo health
 - [x] Backend imports and settings load correctly with safe defaults
-- [x] Backend regression tests pass: `cd backend && pytest -q` -> 2 passed
+- [x] Backend regression tests pass: `cd backend && pytest -q` -> 14 passed
 - [x] Environment templates were aligned and sanitized
 - [x] Documentation and submission references were updated to reflect honest status
 
 ### Backend foundations
 - [x] FastAPI app structure is intact
 - [x] JWT and auth config can initialize with safe local defaults
-- [x] Config validation guards against placeholder secrets
+- [x] Config validation rejects placeholder secrets (covered by focused settings tests)
 - [x] Docker and env template configuration is kept consistent
 
 ### Documentation and audit trail
@@ -29,7 +29,7 @@
 
 ---
 
-## ?? Pending external verification
+## Pending external verification
 
 These items are not claimed as complete without a real user-supplied `NEBIUS_API_KEY` and a runtime environment capable of calling the provider:
 
@@ -43,7 +43,7 @@ These items are not claimed as complete without a real user-supplied `NEBIUS_API
 
 ---
 
-## ?? Validation commands run
+## Validation commands run
 
 ```bash
 cd backend
@@ -56,7 +56,7 @@ Observed result:
 
 ---
 
-## ?? Submission package status
+## Submission package status
 
 ### Repository requirements
 - [x] README.md updated
@@ -74,6 +74,6 @@ Observed result:
 
 ---
 
-## ?? Final note
+## Final note
 
 This repository is in a stronger, more honest submission-ready state than it was at baseline: the local configuration and backend smoke checks are valid, and the project clearly identifies the remaining external work that depends on valid credentials or a deployed environment.
