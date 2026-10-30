@@ -1,5 +1,6 @@
 import os
 import uuid
+import mimetypes
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,8 +18,61 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
-ALLOWED_EXTENSIONS = {".txt", ".md", ".pdf", ".docx"}
+# MIME type validation - secure mapping of extensions to expected MIME types
+ALLOWED_MIME_TYPES = {
+    "text/plain": [".txt", ".md"],
+    "application/pdf": [".pdf"],
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+}
+
+# Map extensions to MIME types for verification
+EXTENSION_TO_MIME = {
+    ".txt": "text/plain",
+    ".md": "text/plain",
+    ".pdf": "application/pdf",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+
+# File signatures (magic bytes) for MIME type verification
+FILE_SIGNATURES = {
+    "application/pdf": [b"%PDF"],
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08"],  # ZIP-based formats
+    "text/plain": [],  # No specific signature for plain text
+}
+
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+CHUNK_SIZE = 64 * 1024  # 64KB chunks for streaming
+
+
+def validate_mime_type(file_content: bytes, file_ext: str) -> tuple[bool, str]:
+    """Validate file MIME type matches expected type for extension using file signatures."""
+    try:
+        expected_mime = EXTENSION_TO_MIME.get(file_ext.lower())
+        
+        if not expected_mime:
+            return False, f"Unsupported file extension: {file_ext}"
+        
+        # Check file signature (magic bytes) for binary formats
+        signatures = FILE_SIGNATURES.get(expected_mime, [])
+        if signatures:
+            # Check if content starts with any of the expected signatures
+            match_found = False
+            for sig in signatures:
+                if file_content.startswith(sig):
+                    match_found = True
+                    break
+            if not match_found:
+                return False, f"File content does not match expected type {expected_mime} (invalid file signature)"
+        else:
+            # For text files, do a basic validation - ensure it's valid UTF-8
+            try:
+                file_content[:1024].decode('utf-8')
+            except UnicodeDecodeError:
+                return False, f"File content is not valid UTF-8 text"
+        
+        return True, expected_mime
+    except Exception as e:
+        return False, f"MIME type validation failed: {str(e)}"
 
 
 def extract_text_from_file(file_path: Path, file_type: str) -> str:
@@ -70,15 +124,27 @@ async def upload_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    # Validate file
+    # Validate file extension
     file_ext = Path(file.filename).suffix.lower()
-    if file_ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed: {ALLOWED_EXTENSIONS}")
+    if file_ext not in EXTENSION_TO_MIME:
+        raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed extensions: {list(EXTENSION_TO_MIME.keys())}")
 
-    # Read file content
-    content = await file.read()
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File too large. Max 10MB")
+    # Stream file content with size limit enforcement
+    content_chunks = []
+    total_size = 0
+    
+    async for chunk in file.iter_chunked(CHUNK_SIZE):
+        total_size += len(chunk)
+        if total_size > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail=f"File too large. Max {MAX_FILE_SIZE // (1024*1024)}MB")
+        content_chunks.append(chunk)
+    
+    content = b"".join(content_chunks)
+    
+    # Validate MIME type against file content (not just extension)
+    is_valid_mime, mime_result = validate_mime_type(content, file_ext)
+    if not is_valid_mime:
+        raise HTTPException(status_code=400, detail=mime_result)
 
     # Save file
     file_id = str(uuid.uuid4())

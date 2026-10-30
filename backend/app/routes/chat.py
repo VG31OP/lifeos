@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,6 +12,171 @@ from app.routes.auth import get_current_active_user
 from app.ai_service import ai_service, ToolCall as AIToolCall
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+# Input sanitization utilities
+MAX_STRING_LENGTH = 10000
+MAX_TITLE_LENGTH = 200
+MAX_DESCRIPTION_LENGTH = 5000
+MAX_MEMORY_CONTENT_LENGTH = 5000
+MAX_SEARCH_QUERY_LENGTH = 500
+
+# Dangerous patterns to block (SQL injection, XSS, etc.)
+DANGEROUS_PATTERNS = [
+    r"(?i)(union\s+select|select\s+.*\s+from|insert\s+into|update\s+.*\s+set|delete\s+from|drop\s+table|create\s+table|alter\s+table)",
+    r"(?i)(script\s*>|javascript:|onerror\s*=|onload\s*=|onclick\s*=|eval\s*\()",
+    r"(--|\|\||;|`|\$\()",
+]
+
+
+def sanitize_string(value: str, max_length: int = MAX_STRING_LENGTH, field_name: str = "value") -> str:
+    """Sanitize a string input."""
+    if not isinstance(value, str):
+        raise ValueError(f"{field_name} must be a string")
+    
+    # Trim whitespace
+    value = value.strip()
+    
+    # Check length
+    if len(value) > max_length:
+        raise ValueError(f"{field_name} exceeds maximum length of {max_length}")
+    
+    # Check for dangerous patterns
+    for pattern in DANGEROUS_PATTERNS:
+        if re.search(pattern, value):
+            raise ValueError(f"{field_name} contains potentially dangerous content")
+    
+    return value
+
+
+def sanitize_tool_arguments(arguments: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
+    """Sanitize tool arguments based on tool type."""
+    sanitized = {}
+    
+    if tool_name == "create_task":
+        sanitized["title"] = sanitize_string(arguments.get("title", ""), MAX_TITLE_LENGTH, "title")
+        if "description" in arguments and arguments["description"] is not None:
+            sanitized["description"] = sanitize_string(arguments["description"], MAX_DESCRIPTION_LENGTH, "description")
+        if "priority" in arguments:
+            priority = arguments["priority"]
+            if priority not in ["low", "medium", "high"]:
+                raise ValueError("Invalid priority value")
+            sanitized["priority"] = priority
+        if "status" in arguments:
+            status = arguments["status"]
+            if status not in ["pending", "in_progress", "completed"]:
+                raise ValueError("Invalid status value")
+            sanitized["status"] = status
+        if "due_date" in arguments and arguments["due_date"] is not None:
+            # Validate ISO format
+            try:
+                datetime.fromisoformat(arguments["due_date"].replace("Z", "+00:00"))
+                sanitized["due_date"] = arguments["due_date"]
+            except (ValueError, AttributeError):
+                raise ValueError("Invalid due_date format. Use ISO 8601 format")
+    
+    elif tool_name == "update_task":
+        if "task_id" not in arguments:
+            raise ValueError("task_id is required")
+        try:
+            sanitized["task_id"] = int(arguments["task_id"])
+        except (ValueError, TypeError):
+            raise ValueError("task_id must be an integer")
+        
+        for field in ["title", "description", "priority", "status", "due_date"]:
+            if field in arguments and arguments[field] is not None:
+                if field == "title":
+                    sanitized[field] = sanitize_string(arguments[field], MAX_TITLE_LENGTH, "title")
+                elif field == "description":
+                    sanitized[field] = sanitize_string(arguments[field], MAX_DESCRIPTION_LENGTH, "description")
+                elif field == "priority":
+                    priority = arguments[field]
+                    if priority not in ["low", "medium", "high"]:
+                        raise ValueError("Invalid priority value")
+                    sanitized[field] = priority
+                elif field == "status":
+                    status = arguments[field]
+                    if status not in ["pending", "in_progress", "completed"]:
+                        raise ValueError("Invalid status value")
+                    sanitized[field] = status
+                elif field == "due_date":
+                    try:
+                        datetime.fromisoformat(arguments[field].replace("Z", "+00:00"))
+                        sanitized[field] = arguments[field]
+                    except (ValueError, AttributeError):
+                        raise ValueError("Invalid due_date format. Use ISO 8601 format")
+    
+    elif tool_name == "delete_task":
+        if "task_id" not in arguments:
+            raise ValueError("task_id is required")
+        try:
+            sanitized["task_id"] = int(arguments["task_id"])
+        except (ValueError, TypeError):
+            raise ValueError("task_id must be an integer")
+    
+    elif tool_name == "list_tasks":
+        if "status" in arguments and arguments["status"] is not None:
+            status = arguments["status"]
+            if status not in ["pending", "in_progress", "completed"]:
+                raise ValueError("Invalid status value")
+            sanitized["status"] = status
+        if "priority" in arguments and arguments["priority"] is not None:
+            priority = arguments["priority"]
+            if priority not in ["low", "medium", "high"]:
+                raise ValueError("Invalid priority value")
+            sanitized["priority"] = priority
+        if "limit" in arguments and arguments["limit"] is not None:
+            try:
+                limit = int(arguments["limit"])
+                if limit < 1 or limit > 100:
+                    raise ValueError("limit must be between 1 and 100")
+                sanitized["limit"] = limit
+            except (ValueError, TypeError):
+                raise ValueError("limit must be an integer")
+    
+    elif tool_name == "save_memory":
+        sanitized["content"] = sanitize_string(arguments.get("content", ""), MAX_MEMORY_CONTENT_LENGTH, "content")
+        if "memory_type" in arguments and arguments["memory_type"] is not None:
+            memory_type = arguments["memory_type"]
+            if memory_type not in ["preference", "fact", "skill", "note"]:
+                raise ValueError("Invalid memory_type value")
+            sanitized["memory_type"] = memory_type
+    
+    elif tool_name == "search_memories":
+        sanitized["query"] = sanitize_string(arguments.get("query", ""), MAX_SEARCH_QUERY_LENGTH, "query")
+        if "memory_type" in arguments and arguments["memory_type"] is not None:
+            memory_type = arguments["memory_type"]
+            if memory_type not in ["preference", "fact", "skill", "note"]:
+                raise ValueError("Invalid memory_type value")
+            sanitized["memory_type"] = memory_type
+        if "limit" in arguments and arguments["limit"] is not None:
+            try:
+                limit = int(arguments["limit"])
+                if limit < 1 or limit > 50:
+                    raise ValueError("limit must be between 1 and 50")
+                sanitized["limit"] = limit
+            except (ValueError, TypeError):
+                raise ValueError("limit must be an integer")
+    
+    elif tool_name == "search_documents":
+        sanitized["query"] = sanitize_string(arguments.get("query", ""), MAX_SEARCH_QUERY_LENGTH, "query")
+        if "document_id" in arguments and arguments["document_id"] is not None:
+            try:
+                sanitized["document_id"] = int(arguments["document_id"])
+            except (ValueError, TypeError):
+                raise ValueError("document_id must be an integer")
+        if "limit" in arguments and arguments["limit"] is not None:
+            try:
+                limit = int(arguments["limit"])
+                if limit < 1 or limit > 20:
+                    raise ValueError("limit must be between 1 and 20")
+                sanitized["limit"] = limit
+            except (ValueError, TypeError):
+                raise ValueError("limit must be an integer")
+    
+    else:
+        raise ValueError(f"Unknown tool: {tool_name}")
+    
+    return sanitized
 
 
 # Tool implementations
@@ -363,7 +529,19 @@ async def execute_tool_call(tool_call: AIToolCall, user_id: int, db: AsyncSessio
             error=f"Unknown tool: {tool_call.name}",
         )
 
-    result = await func(tool_call.arguments, user_id, db)
+    # Sanitize arguments before execution
+    try:
+        sanitized_args = sanitize_tool_arguments(tool_call.arguments, tool_call.name)
+    except ValueError as e:
+        return ToolResult(
+            tool_call_id=tool_call.id,
+            name=tool_call.name,
+            result=None,
+            success=False,
+            error=f"Input validation failed: {str(e)}",
+        )
+
+    result = await func(sanitized_args, user_id, db)
     result.tool_call_id = tool_call.id
     return result
 

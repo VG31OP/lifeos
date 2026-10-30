@@ -5,7 +5,7 @@ from pydantic import field_validator
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://lifeos:lifeos@localhost:5432/lifeos"
+    DATABASE_URL: str = "******localhost:5432/lifeos"
 
     # JWT
     SECRET_KEY: str = ""
@@ -22,6 +22,9 @@ class Settings(BaseSettings):
 
     # Frontend URL
     FRONTEND_URL: str = "http://localhost:3000"
+
+    # Redis (optional, for rate limiting)
+    REDIS_URL: str = ""
 
     @field_validator("SECRET_KEY")
     @classmethod

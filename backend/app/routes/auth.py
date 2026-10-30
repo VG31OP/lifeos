@@ -6,15 +6,11 @@ from app.auth import verify_password, get_password_hash, create_access_token, de
 from app.schemas import UserCreate, UserLogin, UserResponse, Token, TokenData
 from app.models import User
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
-
-# Rate limiter
-limiter = Limiter(key_func=get_remote_address)
 
 
 async def get_current_user(
