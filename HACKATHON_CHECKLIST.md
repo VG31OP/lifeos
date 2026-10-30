@@ -3,7 +3,7 @@
 **Hackathon:** Nebius x NVIDIA Global AI Hackathon 2026
 **Project:** LifeOS - Personal AI Operating System
 **Repository:** https://github.com/VG31OP/lifeos
-**Current status:** audit work is in progress. The updated backend unit modules now pass locally (30 tests); CI run #14 passed migrations and the frontend build, but its older backend unit-test step was canceled at its time bound. That hang was traced to and fixed in document chunking. CI for the correction and PostgreSQL integration tests is pending. Live Nebius verification requires valid credentials and external provider access.
+**Current status:** audit work is in progress. The updated backend unit modules pass locally (31 tests). CI has now reached the PostgreSQL task test and exposed test-fixture address and Passlib/bcrypt compatibility issues; both are fixed in the latest branch update. CI for these fixes and the remaining integration cases is pending. Live Nebius verification requires valid credentials and external provider access.
 
 ---
 
@@ -11,7 +11,7 @@
 
 ### Core app and repo health
 - [ ] Current per-module backend CI and PostgreSQL integration tests pass
-- [x] Isolated backend unit modules pass locally (30 tests)
+- [x] Isolated backend unit modules pass locally (31 tests)
 - [ ] Document-processing failure recovery is verified in CI
 - [x] Environment templates were aligned and sanitized
 - [x] Documentation and submission references were updated to reflect honest status
@@ -46,7 +46,7 @@ These items are not claimed as complete without a real user-supplied `NEBIUS_API
 
 ## Latest CI evidence
 
-CI run #14 ([details](https://github.com/VG31OP/lifeos/actions/runs/41070322368)) ran on commit `450b0bc`. The migration step passed and the frontend job succeeded in 35 seconds. The backend unit-test step was canceled at its 45-second bound; integration tests did not run. The hang was traced to non-progressing document chunking edge cases and fixed. Isolated backend unit modules now pass locally (30 tests); the corrected revision still needs CI confirmation. PostgreSQL integration tests remain unverified.
+CI run #14 ([details](https://github.com/VG31OP/lifeos/actions/runs/41070322368)) ran on commit `450b0bc`; migrations and the frontend build passed, but the backend unit-test step was canceled at its 45-second bound. Later CI isolated the document chunking hang, invalid email fixtures, and a Passlib/bcrypt version incompatibility. Fixes and targeted regression coverage are now on the branch. All 31 isolated backend unit tests pass locally; CI confirmation and the remaining PostgreSQL cases are still pending.
 
 ---
 

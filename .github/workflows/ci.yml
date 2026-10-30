@@ -51,6 +51,10 @@ jobs:
         working-directory: backend
         timeout-minutes: 2
         run: pytest -vv --tb=short tests/test_app.py
+      - name: Test password hashing
+        working-directory: backend
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_auth.py
       - name: Test settings validation
         working-directory: backend
         timeout-minutes: 2

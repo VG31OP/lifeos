@@ -22,13 +22,13 @@
 | Python syntax, YAML parsing, and `git diff --check` | Passed in prior local static checks |
 | Alembic migration step | Passed in CI run #14 |
 | Frontend production build | Passed in CI run #14 (35 seconds) |
-| Backend unit tests | Passed locally: 30 tests across the isolated app/settings, tool-argument, and document-validation modules (bounded run) |
+| Backend unit tests | Passed locally: 31 tests across app/settings, password hashing, tool-argument, and document-validation modules (bounded run) |
 | PostgreSQL API integration tests | Not reached in CI run #14 |
 | Current per-module CI isolation and document-failure regression test | Pending CI after the latest changes |
 | Docker Compose runtime and local database | Not verified; Docker was unavailable in the prior environment |
 | Live Nebius/NVIDIA chat and embedding requests | Not verified; no valid provider credential was available |
 
-CI run #14 is [available here](https://github.com/VG31OP/lifeos/actions/runs/41070322368). Its backend unit-test step was canceled at the 45-second bound. Investigation found document chunking could fail to make progress both at the final remainder and when a sentence boundary was too close to the current start. Both cases are fixed and covered by regression tests. The changed backend unit modules now pass locally. CI for the correction and PostgreSQL integration cases is still pending.
+CI run #14 is [available here](https://github.com/VG31OP/lifeos/actions/runs/41070322368). Its backend unit-test step was canceled at the 45-second bound. Investigation found document chunking could fail to make progress both at the final remainder and when a sentence boundary was too close to the current start. Both cases are fixed and covered by regression tests. The next CI run reached the PostgreSQL task test and exposed two test setup issues: reserved `.test` email addresses and incompatibility between Passlib and the latest bcrypt release. The fixtures now use valid addresses, bcrypt is pinned to a Passlib-compatible release, and a password-hash regression test is added. Locally, all 31 isolated backend unit tests pass; the new CI results remain pending.
 
 ## Security review
 
