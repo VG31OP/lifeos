@@ -22,13 +22,13 @@
 | Python syntax, YAML parsing, and `git diff --check` | Passed in prior local static checks |
 | Alembic migration step | Passed in CI run #14 |
 | Frontend production build | Passed in CI run #14 (35 seconds) |
-| Backend unit tests | Passed locally: 29 tests across the isolated app/settings, tool-argument, and document-validation modules (bounded run, 4.24 seconds) |
+| Backend unit tests | Passed locally: 30 tests across the isolated app/settings, tool-argument, and document-validation modules (bounded run) |
 | PostgreSQL API integration tests | Not reached in CI run #14 |
 | Current per-module CI isolation and document-failure regression test | Pending CI after the latest changes |
 | Docker Compose runtime and local database | Not verified; Docker was unavailable in the prior environment |
 | Live Nebius/NVIDIA chat and embedding requests | Not verified; no valid provider credential was available |
 
-CI run #14 is [available here](https://github.com/VG31OP/lifeos/actions/runs/41070322368). Its backend unit-test step was canceled at the 45-second bound. Investigation found the document chunking unit test could loop forever when the final remainder was no larger than the overlap; that loop is fixed and covered by the focused regression test. The changed backend unit modules now pass locally. CI for the correction and PostgreSQL integration cases is still pending.
+CI run #14 is [available here](https://github.com/VG31OP/lifeos/actions/runs/41070322368). Its backend unit-test step was canceled at the 45-second bound. Investigation found document chunking could fail to make progress both at the final remainder and when a sentence boundary was too close to the current start. Both cases are fixed and covered by regression tests. The changed backend unit modules now pass locally. CI for the correction and PostgreSQL integration cases is still pending.
 
 ## Security review
 

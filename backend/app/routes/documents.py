@@ -96,12 +96,12 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[st
         # Try to break at sentence boundary
         if end < len(text):
             last_period = text.rfind(".", start, end)
-            if last_period > start:
+            if last_period > start + overlap:
                 end = last_period + 1
         chunks.append(text[start:end])
         if end == len(text):
             break
-        start = end - overlap
+        start = max(start + 1, end - overlap)
     return chunks
 
 

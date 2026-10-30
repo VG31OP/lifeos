@@ -111,7 +111,7 @@ npm run dev
 
 ## 🧪 Verification status
 
-The backend test suite includes settings validation, API imports, tool-argument schemas, document input validation, and PostgreSQL-backed endpoint tests. The isolated backend unit modules passed locally (29 tests), including a regression for a document-chunking loop that previously stalled the test run. CI runs database-backed cases against pgvector; the latest available run (#14) predates that fix, and confirmation on the corrected revision is pending.
+The backend test suite includes settings validation, API imports, tool-argument schemas, document input validation, and PostgreSQL-backed endpoint tests. The isolated backend unit modules passed locally (30 tests), including regressions for document-chunking loops that previously could stall the test run. CI runs database-backed cases against pgvector; the latest available run (#14) predates those fixes, and confirmation on the corrected revision is pending.
 
 No live Nebius chat or embedding response has been verified in this workspace. `/health/ai` only reports success after real chat and embedding requests succeed; without a valid `NEBIUS_API_KEY`, it returns `503` and marks provider checks as not configured.
 
