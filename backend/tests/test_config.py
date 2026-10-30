@@ -10,6 +10,7 @@ from app.config import Settings
         "short",
         "replace-me-with-a-secure-random-string-32-plus-chars",
         "replace-with-a-long-random-string",
+        "replace-this-with-a-random-secret",
         "your-secret-key-change-in-production",
         "change-me-to-a-secure-random-string-32-plus-chars",
     ],
@@ -33,7 +34,8 @@ def test_secret_key_rejects_documented_placeholder_outside_development():
         )
 
 
-def test_development_generates_secret_only_when_missing():
+def test_development_generates_secret_only_when_missing(monkeypatch):
+    monkeypatch.delenv("SECRET_KEY", raising=False)
     settings = Settings(_env_file=None, APP_ENV="development")
 
     assert len(settings.SECRET_KEY) >= 32
@@ -50,7 +52,8 @@ def test_database_url_rejects_empty_and_placeholder_values(database_url):
         )
 
 
-def test_database_url_uses_local_default_when_absent():
+def test_database_url_uses_local_default_when_absent(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
     settings = Settings(
         _env_file=None,
         APP_ENV="development",

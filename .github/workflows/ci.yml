@@ -11,6 +11,27 @@ permissions:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql+asyncpg://lifeos:lifeos@localhost:5432/lifeos
+      LIFEOS_INTEGRATION_TESTS: '1'
+      SECRET_KEY: test-secret-key-that-is-32-chars-long
+      NEBIUS_API_KEY: test-key
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: lifeos
+          POSTGRES_PASSWORD: lifeos
+          POSTGRES_DB: lifeos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lifeos -d lifeos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -23,13 +44,41 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Run backend tests
+      - name: Run database migrations
         working-directory: backend
-        env:
-          APP_ENV: test
-          SECRET_KEY: test-secret-key-that-is-32-chars-long
-          NEBIUS_API_KEY: test-key
-        run: pytest -q
+        run: alembic upgrade head
+      - name: Test backend app creation
+        working-directory: backend
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_app.py
+      - name: Test password hashing
+        working-directory: backend
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_auth.py
+      - name: Test settings validation
+        working-directory: backend
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_config.py
+      - name: Test tool argument validation
+        working-directory: backend
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_tool_arguments.py
+      - name: Test document validation
+        working-directory: backend
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_document_validation.py
+      - name: Test task API integration
+        working-directory: backend
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_api_workflow.py::test_registration_login_task_crud_and_user_isolation
+      - name: Test memory consent integration
+        working-directory: backend
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_api_workflow.py::test_memory_endpoint_requires_explicit_consent
+      - name: Test document processing failure recovery
+        working-directory: backend
+        timeout-minutes: 2
+        run: pytest -vv --tb=short tests/test_api_workflow.py::test_document_processing_failure_is_recorded
 
   frontend:
     runs-on: ubuntu-latest

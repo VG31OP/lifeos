@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 export function ChatView() {
   const {
     conversations,
+    setConversations,
     currentConversation,
     messages,
     isLoading,
@@ -29,6 +30,7 @@ export function ChatView() {
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [showConversations, setShowConversations] = useState(false);
+  const [latestExecutionLogs, setLatestExecutionLogs] = useState<ExecutionLog[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -48,6 +50,7 @@ export function ChatView() {
     setInput('');
     setIsSending(true);
     setLoading(true);
+    setLatestExecutionLogs([]);
 
     try {
       const response = await api.sendMessage({
@@ -55,26 +58,31 @@ export function ChatView() {
         conversation_id: currentConversation?.id,
       });
 
-      // Update conversation if new
-      if (!currentConversation || currentConversation.id !== response.conversation_id) {
-        const convs = await api.getConversations();
-        const newConv = convs.find(c => c.id === response.conversation_id);
-        if (newConv) setCurrentConversation(newConv);
+      const [convs, conversationMessages] = await Promise.all([
+        api.getConversations(),
+        api.getConversationMessages(response.conversation_id),
+      ]);
+      setConversations(convs);
+      setCurrentConversation(convs.find(c => c.id === response.conversation_id) || {
+        id: response.conversation_id,
+        title: 'New Conversation',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      setMessages(conversationMessages);
+      setLatestExecutionLogs(response.execution_logs || []);
+
+      if (response.tool_calls && response.tool_calls.length > 0) {
+        const [tasksData, mems, docs] = await Promise.all([
+          api.getTasks(),
+          api.getMemories(),
+          api.getDocuments(),
+        ]);
+        setTasks(tasksData);
+        setMemories(mems);
+        setDocuments(docs);
       }
 
-      // Refresh data if tools were used
-            if (response.tool_calls && response.tool_calls.length > 0) {
-              const [tasksData, mems, docs] = await Promise.all([
-                api.getTasks(),
-                api.getMemories(),
-                api.getDocuments(),
-              ]);
-              setTasks(tasksData);
-              setMemories(mems);
-              setDocuments(docs);
-            }
-
-      // Messages will be updated via the response
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to send message');
     } finally {
@@ -90,6 +98,7 @@ export function ChatView() {
       const msgs = await api.getConversationMessages(conv.id);
       setMessages(msgs);
       setCurrentConversation(conv);
+      setLatestExecutionLogs([]);
     } catch (error) {
       toast.error('Failed to load conversation');
     } finally {
@@ -103,9 +112,10 @@ export function ChatView() {
     try {
       await api.deleteConversation(convId);
       const convs = await api.getConversations();
-      // The store will be updated by the parent component
+      setConversations(convs);
       if (currentConversation?.id === convId) {
         clearCurrentConversation();
+        setLatestExecutionLogs([]);
       }
       toast.success('Conversation deleted');
     } catch (error) {
@@ -115,6 +125,7 @@ export function ChatView() {
 
   const handleNewChat = () => {
     clearCurrentConversation();
+    setLatestExecutionLogs([]);
     setInput('');
   };
 
@@ -129,6 +140,27 @@ export function ChatView() {
           Start a new conversation to begin. I can help you manage tasks, remember preferences,
           analyze documents, and execute multi-step workflows.
         </p>
+        <form onSubmit={handleSend} className="w-full max-w-2xl">
+          <div className="flex items-end gap-2">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Message LifeOS..."
+              className="flex-1 input resize-none min-h-[44px] max-h-48"
+              rows={1}
+              disabled={isSending}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend(e);
+                }
+              }}
+            />
+            <button type="submit" disabled={!input.trim() || isSending} className="btn-primary p-2 disabled:opacity-50" aria-label="Send message">
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
+        </form>
         <button onClick={handleNewChat} className="btn-primary">
           <Plus className="w-4 h-4 mr-2" />
           New Conversation
@@ -192,6 +224,9 @@ export function ChatView() {
             isLoading={true}
           />
         )}
+        {latestExecutionLogs.map((log) => (
+          <ExecutionLogDisplay key={log.id} log={log} />
+        ))}
         <div ref={messagesEndRef} />
       </div>
 
@@ -328,9 +363,9 @@ function MessageBubble({ message, isLoading }: { message: Message; isLoading?: b
             </ReactMarkdown>
           ) : isLoading && (
             <div className="flex gap-1">
-              <span className="w-2 h-2 bg-current/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-2 h-2 bg-current/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-2 h-2 bg-current/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <span className="w-2 h-2 bg-current/50 rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 bg-current/50 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 bg-current/50 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
             </div>
           )}
 

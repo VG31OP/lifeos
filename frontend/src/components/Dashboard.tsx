@@ -23,7 +23,7 @@ const navigation = [
 export function Dashboard() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const { sidebarOpen, sidebarTab, setSidebarTab, toggleSidebar, theme, toggleTheme } = useUIStore();
-  const { conversations, setConversations, currentConversation, setCurrentConversation, setLoading: setChatLoading } = useChatStore();
+  const { setConversations, clearCurrentConversation, setLoading: setChatLoading } = useChatStore();
   const { tasks, setTasks, summary, setSummary } = useTaskStore();
   const { memories, setMemories } = useMemoryStore();
   const { documents, setDocuments } = useDocumentStore();
@@ -63,15 +63,8 @@ export function Dashboard() {
   };
 
   const handleNewConversation = async () => {
-    try {
-      setChatLoading(true);
-      const response = await api.sendMessage({ message: 'Hello!' });
-      setCurrentConversation({ id: response.conversation_id, title: 'New Conversation', created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
-    } catch (error) {
-      toast.error('Failed to create conversation');
-    } finally {
-      setChatLoading(false);
-    }
+    clearCurrentConversation();
+    setSidebarTab('chat');
   };
 
   return (

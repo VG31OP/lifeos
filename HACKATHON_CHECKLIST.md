@@ -3,23 +3,25 @@
 **Hackathon:** Nebius x NVIDIA Global AI Hackathon 2026
 **Project:** LifeOS - Personal AI Operating System
 **Repository:** https://github.com/VG31OP/lifeos
-**Current status:** repository-level local validation complete; live Nebius verification remains blocked by required credentials and external provider access.
+**Current status:** current backend and frontend CI passes on commit `1edc4bc`, including migrations, 32 backend unit tests, and PostgreSQL task, memory-consent, and document-failure integration tests. Docker runtime and live Nebius verification still require external credentials/runtime.
 
 ---
 
 ## Verified in this workspace
 
 ### Core app and repo health
-- [x] Backend imports and settings load correctly with safe defaults
-- [x] Backend regression tests pass: `cd backend && pytest -q` -> 14 passed
+- [x] Current per-module backend CI and PostgreSQL integration tests pass
+- [x] Isolated backend unit modules pass locally (32 tests)
+- [x] Document-processing failure recovery is verified in CI
 - [x] Environment templates were aligned and sanitized
 - [x] Documentation and submission references were updated to reflect honest status
 
 ### Backend foundations
 - [x] FastAPI app structure is intact
 - [x] JWT and auth config can initialize with safe local defaults
-- [x] Config validation rejects placeholder secrets (covered by focused settings tests)
-- [x] Docker and env template configuration is kept consistent
+- [x] Config validation rejects placeholder secrets (focused tests pass in CI)
+- [x] Alembic migrations pass against CI PostgreSQL
+- [ ] Docker Compose build and full service startup verified on current revision
 
 ### Documentation and audit trail
 - [x] README updated to accurately describe verified status vs pending live verification
@@ -43,16 +45,9 @@ These items are not claimed as complete without a real user-supplied `NEBIUS_API
 
 ---
 
-## Validation commands run
+## Latest CI evidence
 
-```bash
-cd backend
-pytest -q
-```
-
-Observed result:
-
-- `2 passed` in the local repo environment
+CI run #19 ([details](https://github.com/VG31OP/lifeos/actions/runs/41073860275)) passed on commit `1edc4bc`: migrations, isolated backend unit tests, all PostgreSQL integration cases (task/user isolation, memory consent, document-failure recovery), and the frontend build. The earlier canceled run #14 and subsequent integration failures led to fixes for document chunk progress, valid test email addresses, bcrypt compatibility, and JWT subject encoding.
 
 ---
 
@@ -76,4 +71,4 @@ Observed result:
 
 ## Final note
 
-This repository is in a stronger, more honest submission-ready state than it was at baseline: the local configuration and backend smoke checks are valid, and the project clearly identifies the remaining external work that depends on valid credentials or a deployed environment.
+The code and CI are verified at the coverage listed above. Keep Docker runtime, live provider inference, the complete provider-backed workflow, and demo/deployment evidence unchecked until each is actually demonstrated.

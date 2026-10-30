@@ -12,7 +12,6 @@ export function DocumentsView() {
   const { documents, currentDocument, chunks, isLoading, setDocuments, addDocument, removeDocument, setCurrentDocument, setChunks, setLoading } = useDocumentStore();
   const [showUpload, setShowUpload] = useState(false);
   const [uploadingFile, setUploadingFile] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingChunks, setViewingChunks] = useState(false);
@@ -56,16 +55,8 @@ export function DocumentsView() {
   const handleUpload = async () => {
     if (!uploadingFile) return;
     setIsUploading(true);
-    setUploadProgress(0);
     try {
-      // Simulate progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90));
-      }, 200);
-
       const doc = await api.uploadDocument(uploadingFile);
-      clearInterval(progressInterval);
-      setUploadProgress(100);
       addDocument(doc);
       toast.success('Document uploaded and processed');
       setShowUpload(false);
@@ -74,7 +65,6 @@ export function DocumentsView() {
       toast.error(error.response?.data?.detail || 'Upload failed');
     } finally {
       setIsUploading(false);
-      setUploadProgress(0);
     }
   };
 
@@ -175,17 +165,9 @@ export function DocumentsView() {
                   <p className="text-sm text-gray-500 dark:text-gray-400">{(uploadingFile.size / 1024 / 1024).toFixed(2)} MB</p>
                 </div>
               </div>
-              <div>
-                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary-600 transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  />
-                </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 text-center">
-                  {isUploading ? `Uploading... ${uploadProgress}%` : 'Ready to upload'}
-                </p>
-              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                {isUploading ? 'Uploading and processing document...' : 'Ready to upload'}
+              </p>
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => { setShowUpload(false); setUploadingFile(null); }}

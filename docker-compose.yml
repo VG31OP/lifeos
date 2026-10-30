@@ -31,7 +31,7 @@ services:
       NEBIUS_API_URL: ${NEBIUS_API_URL:-https://api.studio.nebius.ai/v1}
       NVIDIA_CHAT_MODEL: ${NVIDIA_CHAT_MODEL:-nvidia/Llama-3.1-Nemotron-70B-Instruct}
       NVIDIA_EMBEDDING_MODEL: ${NVIDIA_EMBEDDING_MODEL:-nvidia/NV-Embed-v2}
-      CORS_ORIGINS: http://localhost:3000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     ports:
       - "8000:8000"
     volumes:
@@ -39,6 +39,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
@@ -56,7 +62,8 @@ services:
       - /app/node_modules
       - /app/.next
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:

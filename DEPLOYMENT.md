@@ -19,33 +19,27 @@ cd lifeos
 # Copy environment template
 cp backend/.env.example backend/.env
 
-# Edit .env with your values
-# Required: NEBIUS_API_KEY, SECRET_KEY (32+ chars)
+# Edit backend/.env with your values
+# Required: SECRET_KEY (32+ chars); NEBIUS_API_KEY is needed for live AI features
 ```
 
 ### 2. Set Required Environment Variables
 
-Edit `backend/.env`:
+Edit `backend/.env` and replace the example `SECRET_KEY` placeholder with a random value:
 
 ```bash
-# Generate a secure secret key (32+ characters)
-SECRET_KEY=$(openssl rand -base64 32)
+SECRET_KEY=replace-this-with-a-random-secret
 
 # Your Nebius API key
-NEBIUS_API_KEY=your-actual-nebius-api-key
+NEBIUS_API_KEY=dev-nebius-api-key
 ```
 
-Or export them directly:
-
-```bash
-export SECRET_KEY="$(openssl rand -base64 32)"
-export NEBIUS_API_KEY="your-actual-nebius-api-key"
-```
+Generate a secret with `python -c "import secrets; print(secrets.token_urlsafe(32))"` and replace the example value. Set `NEBIUS_API_KEY` to a real key only when testing live AI features.
 
 ### 3. Start Services
 
 ```bash
-docker compose up -d --build
+docker compose --env-file backend/.env up -d --build
 ```
 
 This starts:
@@ -56,11 +50,10 @@ This starts:
 ### 4. Verify Deployment
 
 ```bash
-# Check service health
-curl http://localhost:8000/health
-
-# Should return:
-# {"status":"ok","database":"connected","ai_provider":"nebius"}
+# Backend process check (does not imply database or AI health)
+curl -i http://localhost:8000/health
+curl -i http://localhost:8000/health/db
+curl -i http://localhost:8000/health/ai
 ```
 
 Open http://localhost:3000 in your browser.
@@ -124,7 +117,7 @@ docker run -d --name lifeos-postgres \
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `SECRET_KEY` | JWT signing key (32+ chars) | `openssl rand -base64 32` |
-| `NEBIUS_API_KEY` | Nebius AI Cloud API key | `sk-...` |
+| `NEBIUS_API_KEY` | Required for live AI features | Nebius AI Cloud API key; without it, live inference is unavailable |
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://user:pass@host:5432/db` |
 
 ### Backend (Optional)
@@ -137,7 +130,7 @@ docker run -d --name lifeos-postgres \
 | `ALGORITHM` | `HS256` | JWT algorithm |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | Token expiry |
 | `FRONTEND_URL` | `http://localhost:3000` | CORS origin |
-| `MAX_FILE_SIZE_MB` | `10` | Upload limit |
+| `MAX_FILE_SIZE_MB` | `10` | Not currently configurable; upload limit is 10 MiB |
 
 ### Frontend
 
@@ -154,19 +147,13 @@ docker run -d --name lifeos-postgres \
 - [ ] Use managed PostgreSQL (AWS RDS, Google Cloud SQL, etc.)
 - [ ] Enable TLS/SSL (reverse proxy with nginx/Traefik)
 - [ ] Set `FRONTEND_URL` to production domain
-- [ ] Configure rate limiting (add to requirements: `slowapi`)
+- [ ] Configure shared rate limiting for multi-instance production deployments (auth endpoints currently use in-process IP limits)
 - [ ] Enable audit logging
 - [ ] Set up monitoring (Prometheus/Grafana)
 
-### Docker Production Build
+### Production Deployment Status
 
-```bash
-# Build production images
-docker compose -f docker-compose.yml -f docker-compose.prod.yml build
-
-# Deploy with secrets
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-```
+The repository currently provides a local-development Docker Compose stack only; it does not include a production Compose override or a production deployment manifest. Do not deploy the development stack as-is. A production deployment still requires a hardened runtime configuration, managed PostgreSQL, TLS termination, restricted network exposure, and secrets supplied by a secret manager.
 
 ### Kubernetes (Optional)
 
