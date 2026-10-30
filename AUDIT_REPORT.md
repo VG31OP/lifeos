@@ -20,15 +20,16 @@
 | Check | Result |
 |---|---|
 | Python syntax, YAML parsing, and `git diff --check` | Passed in prior local static checks |
-| Alembic migration step | Passed in CI run #14 |
-| Frontend production build | Passed in CI run #14 (35 seconds) |
-| Backend unit tests | Passed locally: 32 tests across app/settings, auth/password hashing, tool-argument, and document-validation modules (bounded run) |
-| PostgreSQL API integration tests | Not reached in CI run #14 |
-| Current per-module CI isolation and document-failure regression test | Pending CI after the latest changes |
+| Alembic migration step | Passed in CI run #19 |
+| Frontend production build | Passed in CI run #19 |
+| Backend unit tests | Passed locally: 32 tests across app/settings, auth/password hashing, tool-argument, and document-validation modules (bounded run); CI run #19 also passed these steps |
+| PostgreSQL task CRUD and user-isolation integration test | Passed in CI run #19 |
+| Memory consent and document-processing failure recovery integration tests | Passed in CI run #19 |
+| Overall CI | Passed on commit `1edc4bc` in [run #19](https://github.com/VG31OP/lifeos/actions/runs/41073860275) |
 | Docker Compose runtime and local database | Not verified; Docker was unavailable in the prior environment |
 | Live Nebius/NVIDIA chat and embedding requests | Not verified; no valid provider credential was available |
 
-CI run #14 is [available here](https://github.com/VG31OP/lifeos/actions/runs/41070322368). Its backend unit-test step was canceled at the 45-second bound. Investigation found document chunking could fail to make progress both at the final remainder and when a sentence boundary was too close to the current start. Both cases are fixed and covered by regression tests. Later CI reached the PostgreSQL task test and exposed reserved `.test` email fixtures, a Passlib/latest-bcrypt incompatibility, and a JWT integer subject rejected by the JWT library. The fixtures now use valid addresses, bcrypt is pinned to a Passlib-compatible release, and JWT subjects are encoded and parsed as strings. Regression tests cover chunk progress, password hashing, and JWT subject encoding. Locally, all 32 isolated backend unit tests pass; the CI run for the latest fixes is pending.
+CI run #14 was canceled during backend unit tests. Follow-up runs exposed and helped fix non-progressing document chunking, reserved `.test` email fixtures, a Passlib/latest-bcrypt incompatibility, and JWT integer subjects rejected by the JWT library. Regression tests cover chunk progress, password hashing, and JWT subject encoding. The corrected current revision passes CI run #19, including PostgreSQL-backed task, consent, and document-failure tests.
 
 ## Security review
 
@@ -36,7 +37,6 @@ The read-only review of the changes found no actionable vulnerabilities. This is
 
 ## Remaining blockers
 
-- Obtain a successful current backend CI run, including the PostgreSQL task, memory-consent, and document-failure cases.
 - Verify Docker build/startup, database readiness, and migrations in a real Docker runtime.
 - With a valid `NEBIUS_API_KEY`, verify chat completion, embedding generation, model availability, and embedding dimensions against the actual provider.
 - Demonstrate the end-to-end memory → new session → retrieval → document upload → revision plan → task creation → read-back workflow.

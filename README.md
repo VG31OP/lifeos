@@ -111,7 +111,7 @@ npm run dev
 
 ## 🧪 Verification status
 
-The backend test suite includes settings validation, password hashing, API imports, tool-argument schemas, document input validation, and PostgreSQL-backed endpoint tests. The isolated backend unit modules passed locally (32 tests), including regressions for document-chunking loops, password hashing, and JWT subject encoding. CI runs database-backed cases against pgvector; the latest run exposed an integer JWT subject rejected during authentication, now corrected on the branch, and confirmation is pending.
+The backend test suite includes settings validation, password hashing, API imports, tool-argument schemas, document input validation, and PostgreSQL-backed endpoint tests. All 32 isolated backend unit tests passed locally. CI run #19 passed on commit `1edc4bc`, including Alembic migrations, PostgreSQL task/user-isolation, memory-consent, and document-failure integration tests, plus the frontend production build.
 
 No live Nebius chat or embedding response has been verified in this workspace. `/health/ai` only reports success after real chat and embedding requests succeed; without a valid `NEBIUS_API_KEY`, it returns `503` and marks provider checks as not configured.
 
