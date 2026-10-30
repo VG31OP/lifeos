@@ -41,3 +41,4 @@ def test_chunking_overlaps_without_losing_text():
     assert len(chunks) == 3
     assert chunks[0][-200:] == chunks[1][:200]
     assert chunks[1][-200:] == chunks[2][:200]
+    assert chunks[-1] == text[-900:]
