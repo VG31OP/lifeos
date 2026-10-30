@@ -30,8 +30,8 @@ def create_account(client: TestClient, email: str) -> str:
 
 def test_registration_login_task_crud_and_user_isolation():
     with TestClient(app) as client:
-        owner_token = create_account(client, f"owner-{uuid.uuid4()}@example.test")
-        other_token = create_account(client, f"other-{uuid.uuid4()}@example.test")
+        owner_token = create_account(client, f"owner-{uuid.uuid4()}@example.com")
+        other_token = create_account(client, f"other-{uuid.uuid4()}@example.com")
 
         created = client.post(
             "/tasks",
@@ -70,7 +70,7 @@ def test_memory_endpoint_requires_explicit_consent(monkeypatch):
 
     monkeypatch.setattr(ai_service, "get_embedding", fake_embedding)
     with TestClient(app) as client:
-        token = create_account(client, f"memory-{uuid.uuid4()}@example.test")
+        token = create_account(client, f"memory-{uuid.uuid4()}@example.com")
         headers = {"Authorization": f"Bearer {token}"}
 
         denied = client.post(
@@ -96,7 +96,7 @@ def test_document_processing_failure_is_recorded(monkeypatch):
 
     monkeypatch.setattr(ai_service, "get_embeddings", fail_embeddings)
     with TestClient(app) as client:
-        token = create_account(client, f"document-{uuid.uuid4()}@example.test")
+        token = create_account(client, f"document-{uuid.uuid4()}@example.com")
         headers = {"Authorization": f"Bearer {token}"}
 
         failed = client.post(
