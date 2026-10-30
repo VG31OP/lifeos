@@ -20,6 +20,7 @@ def _is_placeholder_value(value: str) -> bool:
     placeholder_tokens = (
         "replace-me",
         "replace-with",
+        "replace-this",
         "change-me",
         "changeme",
         "your-secret",

@@ -33,11 +33,14 @@ export function TasksView() {
     loadTasks();
   }, []);
 
-  const loadTasks = async () => {
+  const loadTasks = async (filters: { status: string; priority: string } = { status: filterStatus, priority: filterPriority }) => {
     setLoading(true);
     try {
       const [tasksData, summaryData] = await Promise.all([
-        api.getTasks({ status: filterStatus !== 'all' ? filterStatus : undefined, priority: filterPriority !== 'all' ? filterPriority : undefined }),
+        api.getTasks({
+          status: filters.status !== 'all' ? filters.status : undefined,
+          priority: filters.priority !== 'all' ? filters.priority : undefined,
+        }),
         api.getTaskSummary(),
       ]);
       setTasks(tasksData);
@@ -202,7 +205,11 @@ export function TasksView() {
           </div>
           <select
             value={filterStatus}
-            onChange={(e) => { setFilterStatus(e.target.value); loadTasks(); }}
+            onChange={(e) => {
+              const status = e.target.value;
+              setFilterStatus(status);
+              loadTasks({ status, priority: filterPriority });
+            }}
             className="input w-auto"
           >
             <option value="all">All Status</option>
@@ -210,7 +217,11 @@ export function TasksView() {
           </select>
           <select
             value={filterPriority}
-            onChange={(e) => { setFilterPriority(e.target.value); loadTasks(); }}
+            onChange={(e) => {
+              const priority = e.target.value;
+              setFilterPriority(priority);
+              loadTasks({ status: filterStatus, priority });
+            }}
             className="input w-auto"
           >
             <option value="all">All Priorities</option>

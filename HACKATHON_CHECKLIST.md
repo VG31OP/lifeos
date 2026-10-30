@@ -3,15 +3,15 @@
 **Hackathon:** Nebius x NVIDIA Global AI Hackathon 2026
 **Project:** LifeOS - Personal AI Operating System
 **Repository:** https://github.com/VG31OP/lifeos
-**Current status:** repository-level local validation complete; live Nebius verification remains blocked by required credentials and external provider access.
+**Current status:** audit fixes are in progress; current revision awaits CI and runtime verification. Live Nebius verification requires valid credentials and external provider access.
 
 ---
 
 ## Verified in this workspace
 
 ### Core app and repo health
-- [x] Backend imports and settings load correctly with safe defaults
-- [x] Backend regression tests pass: `cd backend && pytest -q` -> 14 passed
+- [ ] Current audit revision passes backend imports and CI tests
+- [ ] Current audit changes pass backend tests and CI (re-run after these changes)
 - [x] Environment templates were aligned and sanitized
 - [x] Documentation and submission references were updated to reflect honest status
 
@@ -19,7 +19,7 @@
 - [x] FastAPI app structure is intact
 - [x] JWT and auth config can initialize with safe local defaults
 - [x] Config validation rejects placeholder secrets (covered by focused settings tests)
-- [x] Docker and env template configuration is kept consistent
+- [ ] Docker Compose services and migrations verified on current revision
 
 ### Documentation and audit trail
 - [x] README updated to accurately describe verified status vs pending live verification
@@ -50,9 +50,7 @@ cd backend
 pytest -q
 ```
 
-Observed result:
-
-- `2 passed` in the local repo environment
+The most recent completed CI run passed before the current audit changes. The expanded suite and migrations must pass on the current revision before claiming final verification.
 
 ---
 

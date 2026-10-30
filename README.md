@@ -105,24 +105,20 @@ npm run dev
 | `NEBIUS_API_KEY` | Yes for live AI | Nebius AI Studio API key |
 | `NEBIUS_API_URL` | Optional | Usually `https://api.studio.nebius.ai/v1` |
 | `NEBIUS_BASE_URL` | Optional | OpenAI-compatible base URL |
-| `NVIDIA_CHAT_MODEL` | Yes | Example: `nvidia/Llama-3.1-Nemotron-70B-Instruct` |
-| `NVIDIA_EMBEDDING_MODEL` | Yes | Example: `nvidia/NV-Embed-v2` |
-| `FRONTEND_URL` | Yes | Frontend origin for CORS |
+| `NVIDIA_CHAT_MODEL` | No | Default: `nvidia/Llama-3.1-Nemotron-70B-Instruct` |
+| `NVIDIA_EMBEDDING_MODEL` | No | Default: `nvidia/NV-Embed-v2` |
+| `FRONTEND_URL` | No | Frontend origin for CORS; defaults to `http://localhost:3000` |
 
 ## 🧪 Verification status
 
-The project currently has a verified backend import-and-config smoke test in place:
+The backend tests cover settings validation, API imports, tool-argument schemas, and document input validation. PostgreSQL-backed endpoint tests run in CI against pgvector:
 
 ```bash
 cd backend
 pytest -q
 ```
 
-Observed result in this workspace:
-
-- 2 tests passed
-
-Runtime verification of real Nebius chat completions and embeddings remains blocked until a valid `NEBIUS_API_KEY` is supplied. The app has code paths ready for live provider use, but no successful live-provider response was observed in this environment.
+No live Nebius chat or embedding response has been verified in this workspace. `/health/ai` only reports success after real chat and embedding requests succeed; without a valid `NEBIUS_API_KEY`, it returns `503` and marks provider checks as not configured.
 
 ## 📸 Screenshots and demo assets
 
@@ -136,13 +132,14 @@ Production deployment guidance is covered in `DEPLOYMENT.md`. The current repo i
 
 Verified in this workspace:
 
-- backend configuration loads cleanly with safe defaults
-- backend test suite runs successfully in the repo environment
-- core docs and environment templates have been aligned
+- backend configuration has focused validation tests
+- Python syntax and Compose YAML parse checks passed for the current audit changes
+- current audit revision is pending CI and full runtime validation
 
 Outstanding external dependencies:
 
 - valid Nebius API credentials for live AI verification
+- Docker/PostgreSQL runtime for migration and full workflow verification
 - optional production hosting and screenshots
 - actual demo video recording and public link when prepared
 

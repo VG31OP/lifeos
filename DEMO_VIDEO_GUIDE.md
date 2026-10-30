@@ -26,13 +26,13 @@
 **Show:** Register → Login → Dashboard with sidebar navigation (Chat, Tasks, Documents, Memories, Activity)
 
 ### 1:15-1:45 — **AI Chat with Tool Execution** ⭐ KEY FEATURE
-> *"The AI doesn't just chat — it executes real backend operations. Watch it create a task, save a memory, and search documents."*
+> *"The AI can execute backend operations when the configured provider requests supported tools. This demo shows the actual returned outcome."*
 
 **Show:** 
 1. Type: *"Create a high-priority task to prepare hackathon demo video due tomorrow"*
-2. Watch tool call appear: `create_task` → verification ✓
+2. Show the returned `create_task` result and confirm it appears in the task list
 3. Type: *"Save this as a memory: I prefer dark mode and use vim keybindings"*
-4. Watch: `save_memory` (requires consent first time) → verification ✓
+4. Save only after explicitly checking the consent box; confirm it appears in Memories
 5. Type: *"Search my memories for vim"*
 6. Watch: `search_memories` → semantic results
 
@@ -47,7 +47,7 @@
 **Show:** Documents view → Upload a PDF/MD file → Show chunks with embeddings → Search: *"What does the doc say about architecture?"* → Semantic results with citations
 
 ### 2:45-3:00 — **Activity Logs & Verification**
-> *"Every AI action is logged with input, output, success status, and verification — full audit trail."*
+> *"Tool calls are recorded with their request, arguments, result, and success or failure status."*
 
 **Show:** Activity view → Expand entries → Show tool name, input JSON, output JSON, verification details
 

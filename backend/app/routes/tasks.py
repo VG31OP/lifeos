@@ -50,6 +50,27 @@ async def list_tasks(
     return result.scalars().all()
 
 
+@router.get("/count/summary")
+async def get_task_summary(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    result = await db.execute(
+        select(Task.status, func.count(Task.id))
+        .where(Task.user_id == current_user.id)
+        .group_by(Task.status)
+    )
+    counts = dict(result.all())
+    total = sum(counts.values())
+    return {
+        "total": total,
+        "pending": counts.get("pending", 0),
+        "in_progress": counts.get("in_progress", 0),
+        "completed": counts.get("completed", 0),
+        "cancelled": counts.get("cancelled", 0),
+    }
+
+
 @router.get("/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: int,
@@ -82,6 +103,8 @@ async def update_task(
     if task_data.status == "completed" and task.completed_at is None:
         from datetime import datetime
         task.completed_at = datetime.utcnow()
+    elif task_data.status and task_data.status != "completed":
+        task.completed_at = None
 
     await db.commit()
     await db.refresh(task)
@@ -102,24 +125,3 @@ async def delete_task(
     await db.delete(task)
     await db.commit()
     return {"message": "Task deleted successfully"}
-
-
-@router.get("/count/summary")
-async def get_task_summary(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    result = await db.execute(
-        select(Task.status, func.count(Task.id))
-        .where(Task.user_id == current_user.id)
-        .group_by(Task.status)
-    )
-    counts = dict(result.all())
-    total = sum(counts.values())
-    return {
-        "total": total,
-        "pending": counts.get("pending", 0),
-        "in_progress": counts.get("in_progress", 0),
-        "completed": counts.get("completed", 0),
-        "cancelled": counts.get("cancelled", 0),
-    }

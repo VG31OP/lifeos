@@ -11,6 +11,20 @@ permissions:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: lifeos
+          POSTGRES_PASSWORD: lifeos
+          POSTGRES_DB: lifeos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lifeos -d lifeos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -27,9 +41,13 @@ jobs:
         working-directory: backend
         env:
           APP_ENV: test
+          DATABASE_URL: postgresql+asyncpg://lifeos:lifeos@localhost:5432/lifeos
+          LIFEOS_INTEGRATION_TESTS: '1'
           SECRET_KEY: test-secret-key-that-is-32-chars-long
           NEBIUS_API_KEY: test-key
-        run: pytest -q
+        run: |
+          alembic upgrade head
+          pytest -q
 
   frontend:
     runs-on: ubuntu-latest

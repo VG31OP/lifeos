@@ -27,10 +27,10 @@ export function MemoriesView() {
     loadMemories();
   }, [filterType]);
 
-  const loadMemories = async () => {
+  const loadMemories = async (type = filterType) => {
     setLoading(true);
     try {
-      const mems = await api.getMemories({ memory_type: filterType !== 'all' ? filterType : undefined });
+      const mems = await api.getMemories({ memory_type: type !== 'all' ? type : undefined });
       setMemories(mems);
     } catch (error) {
       toast.error('Failed to load memories');
@@ -146,7 +146,11 @@ export function MemoriesView() {
           </div>
           <select
             value={filterType}
-            onChange={(e) => { setFilterType(e.target.value); loadMemories(); }}
+            onChange={(e) => {
+              const type = e.target.value;
+              setFilterType(type);
+              loadMemories(type);
+            }}
             className="input w-auto"
           >
             <option value="all">All Types</option>

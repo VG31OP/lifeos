@@ -10,6 +10,7 @@ from app.config import Settings
         "short",
         "replace-me-with-a-secure-random-string-32-plus-chars",
         "replace-with-a-long-random-string",
+        "replace-this-with-a-random-secret",
         "your-secret-key-change-in-production",
         "change-me-to-a-secure-random-string-32-plus-chars",
     ],
