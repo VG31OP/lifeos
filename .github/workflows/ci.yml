@@ -46,21 +46,15 @@ jobs:
       - name: Run database migrations
         working-directory: backend
         run: alembic upgrade head
-      - name: Run backend tests
+      - name: Run backend unit tests
         working-directory: backend
-        run: |
-          if output="$(timeout --kill-after=5s 90s pytest -vv --tb=short 2>&1)"; then
-            status=0
-          else
-            status=$?
-          fi
-          printf '%s\n' "$output"
-          if [ "$status" -ne 0 ]; then
-            printf '%s\n' "$output" | tail -n 20 | sed -E 's#(postgresql\+asyncpg://)[^@[:space:]]+@#\1[redacted]@#g' | while IFS= read -r line; do
-              printf '::error::%s\n' "$line"
-            done
-            exit "$status"
-          fi
+        run: timeout --kill-after=5s 45s pytest -q --ignore=tests/test_api_workflow.py
+      - name: Test task API integration
+        working-directory: backend
+        run: timeout --kill-after=5s 45s pytest -vv --tb=short tests/test_api_workflow.py::test_registration_login_task_crud_and_user_isolation
+      - name: Test memory consent integration
+        working-directory: backend
+        run: timeout --kill-after=5s 45s pytest -vv --tb=short tests/test_api_workflow.py::test_memory_endpoint_requires_explicit_consent
 
   frontend:
     runs-on: ubuntu-latest
