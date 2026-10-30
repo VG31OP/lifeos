@@ -21,7 +21,7 @@ def test_secret_key_rejects_short_and_placeholder_values(secret_key):
 
 def test_secret_key_is_required_outside_development():
     with pytest.raises(ValidationError, match="SECRET_KEY"):
-        Settings(_env_file=None, APP_ENV="production")
+        Settings(_env_file=None, APP_ENV="production", SECRET_KEY="")
 
 
 def test_secret_key_rejects_documented_placeholder_outside_development():
