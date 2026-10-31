@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request, HTTPException
