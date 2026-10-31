@@ -47,7 +47,7 @@ export function TasksView() {
     loadTasks();
   }, [filterStatus, filterPriority]);
 
-  const loadTasks = async () => {
+  const loadTasks = async (filters: { status: string; priority: string } = { status: filterStatus, priority: filterPriority }) => {
     setLoading(true);
     try {
       const [tasksData, summaryData] = await Promise.all([

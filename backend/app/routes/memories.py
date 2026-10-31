@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import bindparam, select
+from pgvector.sqlalchemy import Vector
 from typing import List, Optional
 from app.database import get_db
 from app.schemas import MemoryCreate, MemoryUpdate, MemoryResponse
-from app.models import Memory
+from app.models import EMBEDDING_DIMENSION, Memory
 from app.routes.auth import get_current_active_user
 from app.models import User
 from app.ai_service import ai_service
@@ -18,6 +19,9 @@ async def create_memory(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
+    if not memory_data.consented:
+        raise HTTPException(status_code=400, detail="Explicit consent is required to save a memory")
+
     # Generate embedding for semantic search
     embedding = await ai_service.get_embedding(memory_data.content)
 
@@ -41,7 +45,7 @@ async def list_memories(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    query = select(Memory).where(Memory.user_id == current_user.id)
+    query = select(Memory).where(Memory.user_id == current_user.id, Memory.consented.is_(True))
     if memory_type:
         query = query.where(Memory.memory_type == memory_type)
     query = query.order_by(Memory.created_at.desc()).limit(limit)

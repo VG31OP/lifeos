@@ -37,7 +37,6 @@ export function DocumentsView() {
 
   const [showUpload, setShowUpload] = useState(false);
   const [uploadingFile, setUploadingFile] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [chunkSearchQuery, setChunkSearchQuery] = useState('');
@@ -81,15 +80,12 @@ export function DocumentsView() {
   const handleUpload = async () => {
     if (!uploadingFile) return;
     setIsUploading(true);
-    setUploadProgress(0);
     try {
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + 15, 90));
       }, 150);
 
       const doc = await api.uploadDocument(uploadingFile);
-      clearInterval(progressInterval);
-      setUploadProgress(100);
       addDocument(doc);
       toast.success('Document uploaded and indexed into knowledge base');
       setShowUpload(false);
@@ -98,7 +94,6 @@ export function DocumentsView() {
       toast.error(error.response?.data?.detail || 'Upload failed');
     } finally {
       setIsUploading(false);
-      setUploadProgress(0);
     }
   };
 

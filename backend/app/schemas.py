@@ -156,7 +156,6 @@ class DocumentCreate(DocumentBase):
 class DocumentResponse(DocumentBase):
     id: int
     user_id: int
-    content: Optional[str] = None
     chunk_count: int
     processing_status: str
     created_at: datetime
@@ -208,7 +207,7 @@ class ExecutionLogResponse(ExecutionLogBase):
 
 # AI Chat schemas
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(..., min_length=1, max_length=12000)
     conversation_id: Optional[int] = None
 
 

@@ -2,16 +2,19 @@ import json
 import re
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import bindparam, select
+from pgvector.sqlalchemy import Vector
 from app.database import get_db
 from app.schemas import ChatRequest, ChatResponse, ToolCall, ToolResult, ExecutionLogCreate, ExecutionLogResponse
-from app.models import Conversation, Message, Task, Memory, Document, ExecutionLog, User
+from app.models import EMBEDDING_DIMENSION, Conversation, Message, Task, Memory, Document, ExecutionLog, User
 from app.routes.auth import get_current_active_user
 from app.ai_service import ai_service, ToolCall as AIToolCall
+from app.tool_arguments import TOOL_ARGUMENT_SCHEMAS
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+logger = logging.getLogger(__name__)
 
 # Input sanitization utilities
 MAX_STRING_LENGTH = 10000
@@ -206,13 +209,14 @@ async def execute_create_task(arguments: Dict[str, Any], user_id: int, db: Async
             },
             success=True,
         )
-    except Exception as e:
+    except Exception:
+        logger.exception("Create-task tool failed")
         return ToolResult(
             tool_call_id="",
             name="create_task",
             result=None,
             success=False,
-            error=str(e),
+            error="Task creation failed",
         )
 
 
@@ -239,6 +243,8 @@ async def execute_update_task(arguments: Dict[str, Any], user_id: int, db: Async
 
         if arguments.get("status") == "completed" and task.completed_at is None:
             task.completed_at = datetime.utcnow()
+        elif arguments.get("status") and arguments["status"] != "completed":
+            task.completed_at = None
 
         await db.commit()
         await db.refresh(task)
@@ -253,13 +259,14 @@ async def execute_update_task(arguments: Dict[str, Any], user_id: int, db: Async
             },
             success=True,
         )
-    except Exception as e:
+    except Exception:
+        logger.exception("Update-task tool failed")
         return ToolResult(
             tool_call_id="",
             name="update_task",
             result=None,
             success=False,
-            error=str(e),
+            error="Task update failed",
         )
 
 
@@ -286,13 +293,14 @@ async def execute_delete_task(arguments: Dict[str, Any], user_id: int, db: Async
             result={"deleted": True, "task_id": task_id},
             success=True,
         )
-    except Exception as e:
+    except Exception:
+        logger.exception("Delete-task tool failed")
         return ToolResult(
             tool_call_id="",
             name="delete_task",
             result=None,
             success=False,
-            error=str(e),
+            error="Task deletion failed",
         )
 
 
@@ -328,13 +336,14 @@ async def execute_list_tasks(arguments: Dict[str, Any], user_id: int, db: AsyncS
             },
             success=True,
         )
-    except Exception as e:
+    except Exception:
+        logger.exception("List-tasks tool failed")
         return ToolResult(
             tool_call_id="",
             name="list_tasks",
             result=None,
             success=False,
-            error=str(e),
+            error="Task listing failed",
         )
 
 
@@ -375,13 +384,14 @@ async def execute_save_memory(arguments: Dict[str, Any], user_id: int, db: Async
             },
             success=True,
         )
-    except Exception as e:
+    except Exception:
+        logger.exception("Save-memory tool failed")
         return ToolResult(
             tool_call_id="",
             name="save_memory",
             result=None,
             success=False,
-            error=str(e),
+            error="Memory save failed",
         )
 
 
@@ -439,13 +449,14 @@ async def execute_search_memories(arguments: Dict[str, Any], user_id: int, db: A
             result={"memories": memories, "count": len(memories)},
             success=True,
         )
-    except Exception as e:
+    except Exception:
+        logger.exception("Search-memories tool failed")
         return ToolResult(
             tool_call_id="",
             name="search_memories",
             result=None,
             success=False,
-            error=str(e),
+            error="Memory search failed",
         )
 
 
@@ -547,13 +558,14 @@ async def execute_search_documents(arguments: Dict[str, Any], user_id: int, db: 
             result={"chunks": chunks, "count": len(chunks)},
             success=True,
         )
-    except Exception as e:
+    except Exception:
+        logger.exception("Search-documents tool failed")
         return ToolResult(
             tool_call_id="",
             name="search_documents",
             result=None,
             success=False,
-            error=str(e),
+            error="Document search failed",
         )
 
 
@@ -568,7 +580,22 @@ TOOL_FUNCTIONS = {
 }
 
 
-async def execute_tool_call(tool_call: AIToolCall, user_id: int, db: AsyncSession) -> ToolResult:
+def validate_tool_arguments(tool_call: AIToolCall) -> Optional[Dict[str, Any]]:
+    schema = TOOL_ARGUMENT_SCHEMAS.get(tool_call.name)
+    if schema is None:
+        return None
+    try:
+        return schema.model_validate(tool_call.arguments).model_dump(mode="json", exclude_none=True)
+    except Exception:
+        return None
+
+
+async def execute_tool_call(
+    tool_call: AIToolCall,
+    user_id: int,
+    db: AsyncSession,
+    validated_arguments: Optional[Dict[str, Any]] = None,
+) -> ToolResult:
     """Execute a single tool call"""
     func = TOOL_FUNCTIONS.get(tool_call.name)
     if not func:
@@ -595,6 +622,47 @@ async def execute_tool_call(tool_call: AIToolCall, user_id: int, db: AsyncSessio
     result = await func(sanitized_args, user_id, db)
     result.tool_call_id = tool_call.id
     return result
+
+
+async def verify_tool_result(tool_result: ToolResult, user_id: int, db: AsyncSession) -> Dict[str, Any]:
+    if not tool_result.success:
+        return {"verified": False, "reason": "tool_execution_failed"}
+
+    result = tool_result.result or {}
+    if tool_result.name in {"create_task", "update_task"}:
+        task_result = await db.execute(
+            select(Task).where(Task.id == result.get("id"), Task.user_id == user_id)
+        )
+        task = task_result.scalar_one_or_none()
+        verified = bool(task and task.title == result.get("title") and task.status == result.get("status"))
+        return {"verified": verified, "method": "database_readback"}
+
+    if tool_result.name == "delete_task":
+        task_result = await db.execute(
+            select(Task).where(Task.id == result.get("task_id"), Task.user_id == user_id)
+        )
+        return {
+            "verified": task_result.scalar_one_or_none() is None,
+            "method": "database_readback",
+        }
+
+    if tool_result.name == "save_memory":
+        memory_result = await db.execute(
+            select(Memory).where(
+                Memory.id == result.get("id"),
+                Memory.user_id == user_id,
+                Memory.consented.is_(True),
+            )
+        )
+        memory = memory_result.scalar_one_or_none()
+        verified = bool(
+            memory
+            and memory.content == result.get("content")
+            and memory.memory_type == result.get("memory_type")
+        )
+        return {"verified": verified, "method": "database_readback"}
+
+    return {"verified": True, "method": "query_result"}
 
 
 @router.post("", response_model=ChatResponse)
@@ -628,9 +696,12 @@ async def chat(
 
     # Get conversation history
     result = await db.execute(
-        select(Message).where(Message.conversation_id == conversation.id).order_by(Message.created_at)
+        select(Message)
+        .where(Message.conversation_id == conversation.id)
+        .order_by(Message.created_at.desc())
+        .limit(40)
     )
-    messages = result.scalars().all()
+    messages = list(reversed(result.scalars().all()))
 
     # Format messages for AI
     ai_messages = [
@@ -652,25 +723,48 @@ async def chat(
     tool_results = []
 
     for tool_call in tool_calls:
+        validated_arguments = validate_tool_arguments(tool_call)
         # Log execution start
         exec_log = ExecutionLog(
             user_id=current_user.id,
             conversation_id=conversation.id,
             request=request.message,
             tool_name=tool_call.name,
-            tool_input=tool_call.arguments,
+            tool_input=validated_arguments if validated_arguments is not None else tool_call.arguments,
         )
         db.add(exec_log)
         await db.commit()
 
         # Execute tool
-        tool_result = await execute_tool_call(tool_call, current_user.id, db)
+        tool_result = await execute_tool_call(
+            tool_call,
+            current_user.id,
+            db,
+            validated_arguments,
+        )
         tool_results.append(tool_result)
 
         # Update execution log with result
         exec_log.tool_output = tool_result.result
         exec_log.success = tool_result.success
         exec_log.error_message = tool_result.error
+        try:
+            exec_log.verification_result = await verify_tool_result(
+                tool_result,
+                current_user.id,
+                db,
+            )
+        except Exception:
+            logger.exception("Tool result read-back verification failed")
+            await db.rollback()
+            exec_log = await db.get(ExecutionLog, exec_log.id)
+            if exec_log is None:
+                raise RuntimeError("Execution log disappeared during verification recovery")
+            exec_log.verification_result = {
+                "verified": False,
+                "method": "database_readback",
+                "reason": "verification_query_failed",
+            }
         exec_log.completed_at = datetime.utcnow()
         await db.commit()
         await db.refresh(exec_log)
@@ -751,7 +845,7 @@ async def create_conversation(
 
 @router.get("/conversations", response_model=List[Dict[str, Any]])
 async def list_conversations(
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
@@ -823,7 +917,7 @@ async def delete_conversation(
 
 @router.get("/execution-logs", response_model=List[ExecutionLogResponse])
 async def get_execution_logs(
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):

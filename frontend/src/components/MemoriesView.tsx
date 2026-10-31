@@ -45,7 +45,7 @@ export function MemoriesView() {
     loadMemories();
   }, [filterType]);
 
-  const loadMemories = async () => {
+  const loadMemories = async (type = filterType) => {
     setLoading(true);
     try {
       const mems = await api.getMemories({

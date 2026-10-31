@@ -130,7 +130,6 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['conversation_id'], ['conversations.id'], ondelete='SET NULL'),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_execution_logs_id'), 'execution_logs', ['id'], unique=False)
@@ -151,6 +150,14 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_conversations_id'), 'conversations', ['id'], unique=False)
     op.create_index(op.f('ix_conversations_user_id'), 'conversations', ['user_id'], unique=False)
+    op.create_foreign_key(
+        'fk_execution_logs_conversation_id_conversations',
+        'execution_logs',
+        'conversations',
+        ['conversation_id'],
+        ['id'],
+        ondelete='SET NULL',
+    )
 
     # Create messages table
     op.create_table(
@@ -171,8 +178,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table('messages')
-    op.drop_table('conversations')
     op.drop_table('execution_logs')
+    op.drop_table('conversations')
     op.drop_table('document_chunks')
     op.drop_table('documents')
     op.drop_table('memories')

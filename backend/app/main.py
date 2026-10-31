@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 from app.config import settings
-from app.database import init_db, close_db
+from app.database import engine, init_db, close_db
 from app.routes import auth, tasks, memories, documents, chat
 from app.rate_limiter import limiter
 
@@ -29,13 +29,15 @@ class APIError(Exception):
         self.details = details or {}
         super().__init__(message)
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     await init_db()
     yield
-    # Shutdown
+    from app.ai_service import ai_service
+    await ai_service.client.close()
     await close_db()
 
 
@@ -150,7 +152,7 @@ async def root():
 @app.get("/health")
 @app.get("/api/health")
 async def health():
-    return {"status": "healthy"}
+    return {"status": "ok", "backend": "operational"}
 
 
 @app.get("/health/db")
@@ -170,11 +172,41 @@ async def health_db():
 @app.get("/health/ai")
 @app.get("/api/health/ai")
 async def health_ai():
-    """Check AI provider connectivity."""
+    """Probe configured chat and embedding models with real provider requests."""
     from app.ai_service import ai_service
+
+    configured = settings.NEBIUS_API_KEY != "dev-nebius-api-key"
+    result = {
+        "status": "unavailable",
+        "provider": "nebius",
+        "credentials_configured": configured,
+        "chat_inference": "not_configured" if not configured else "unavailable",
+        "embedding_generation": "not_configured" if not configured else "unavailable",
+    }
+    if not configured:
+        return JSONResponse(status_code=503, content=result)
+
     try:
-        # Test with a simple embedding request
-        await ai_service.get_embedding("health check")
-        return {"status": "ok", "ai_provider": "nebius"}
-    except Exception as e:
-        return {"status": "error", "ai_provider": "unavailable", "error": str(e)}
+        await asyncio.wait_for(
+            ai_service.client.chat.completions.create(
+                model=ai_service.chat_model,
+                messages=[{"role": "user", "content": "Reply with OK."}],
+                max_tokens=8,
+                temperature=0,
+            ),
+            timeout=15,
+        )
+        result["chat_inference"] = "ok"
+    except Exception:
+        logger.exception("Nebius chat health probe failed")
+
+    try:
+        await asyncio.wait_for(ai_service.get_embedding("health check"), timeout=15)
+        result["embedding_generation"] = "ok"
+    except Exception:
+        logger.exception("Nebius embedding health probe failed")
+
+    if result["chat_inference"] == "ok" and result["embedding_generation"] == "ok":
+        result["status"] = "ok"
+        return result
+    return JSONResponse(status_code=503, content=result)

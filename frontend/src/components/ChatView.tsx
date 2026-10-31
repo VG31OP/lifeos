@@ -46,6 +46,7 @@ export function ChatView() {
   const [isSending, setIsSending] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [showConversations, setShowConversations] = useState(false);
+  const [latestExecutionLogs, setLatestExecutionLogs] = useState<ExecutionLog[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -75,6 +76,7 @@ export function ChatView() {
     setInput('');
     setIsSending(true);
     setLoading(true);
+    setLatestExecutionLogs([]);
 
     try {
       const response = await api.sendMessage({
@@ -173,6 +175,7 @@ export function ChatView() {
       setConversations(updated);
       if (currentConversation?.id === convId) {
         clearCurrentConversation();
+        setLatestExecutionLogs([]);
       }
       toast.success('Conversation deleted');
     } catch (error) {
@@ -182,6 +185,7 @@ export function ChatView() {
 
   const handleNewChat = () => {
     clearCurrentConversation();
+    setLatestExecutionLogs([]);
     setInput('');
   };
 
