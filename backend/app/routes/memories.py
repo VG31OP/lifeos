@@ -57,46 +57,55 @@ async def search_memories(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    # Generate embedding for the search query
-    query_embedding = await ai_service.get_embedding(query)
+    from sqlalchemy import text, select
+    from app.config import settings
 
-    # Use pgvector for semantic search
-    from sqlalchemy import text
+    if "postgresql" in settings.DATABASE_URL:
+        # Generate embedding for the search query
+        query_embedding = await ai_service.get_embedding(query)
 
-    sql = text("""
-        SELECT *, 1 - (embedding <=> :query_embedding) as similarity
-        FROM memories
-        WHERE user_id = :user_id
-        AND (:memory_type IS NULL OR memory_type = :memory_type)
-        ORDER BY embedding <=> :query_embedding
-        LIMIT :limit
-    """)
+        # Use pgvector for semantic search
+        sql = text("""
+            SELECT *, 1 - (embedding <=> :query_embedding) as similarity
+            FROM memories
+            WHERE user_id = :user_id
+            AND (:memory_type IS NULL OR memory_type = :memory_type)
+            ORDER BY embedding <=> :query_embedding
+            LIMIT :limit
+        """)
 
-    result = await db.execute(
-        sql,
-        {
-            "query_embedding": query_embedding,
-            "user_id": current_user.id,
-            "memory_type": memory_type,
-            "limit": limit,
-        }
-    )
-
-    memories = []
-    for row in result:
-        memory = Memory(
-            id=row.id,
-            user_id=row.user_id,
-            content=row.content,
-            memory_type=row.memory_type,
-            embedding=row.embedding,
-            consented=row.consented,
-            created_at=row.created_at,
-            updated_at=row.updated_at,
+        result = await db.execute(
+            sql,
+            {
+                "query_embedding": query_embedding,
+                "user_id": current_user.id,
+                "memory_type": memory_type,
+                "limit": limit,
+            }
         )
-        memories.append(memory)
 
-    return memories
+        memories = []
+        for row in result:
+            memory = Memory(
+                id=row.id,
+                user_id=row.user_id,
+                content=row.content,
+                memory_type=row.memory_type,
+                embedding=row.embedding,
+                consented=row.consented,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            )
+            memories.append(memory)
+
+        return memories
+    else:
+        stmt = select(Memory).where(Memory.user_id == current_user.id)
+        if memory_type:
+            stmt = stmt.where(Memory.memory_type == memory_type)
+        stmt = stmt.where(Memory.content.ilike(f"%{query}%")).limit(limit)
+        result = await db.execute(stmt)
+        return list(result.scalars().all())
 
 
 @router.get("/{memory_id}", response_model=MemoryResponse)

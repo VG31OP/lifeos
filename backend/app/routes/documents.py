@@ -260,37 +260,46 @@ async def search_document(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    query_embedding = await ai_service.get_embedding(query)
+    from sqlalchemy import text, select
+    from app.config import settings
 
-    from sqlalchemy import text
+    if "postgresql" in settings.DATABASE_URL:
+        query_embedding = await ai_service.get_embedding(query)
 
-    sql = text("""
-        SELECT *, 1 - (embedding <=> :query_embedding) as similarity
-        FROM document_chunks
-        WHERE document_id = :document_id
-        ORDER BY embedding <=> :query_embedding
-        LIMIT :limit
-    """)
+        sql = text("""
+            SELECT *, 1 - (embedding <=> :query_embedding) as similarity
+            FROM document_chunks
+            WHERE document_id = :document_id
+            ORDER BY embedding <=> :query_embedding
+            LIMIT :limit
+        """)
 
-    result = await db.execute(
-        sql,
-        {"query_embedding": query_embedding, "document_id": document_id, "limit": limit}
-    )
-
-    chunks = []
-    for row in result:
-        chunk = DocumentChunk(
-            id=row.id,
-            document_id=row.document_id,
-            chunk_index=row.chunk_index,
-            content=row.content,
-            embedding=row.embedding,
-            page_number=row.page_number,
-            created_at=row.created_at,
+        result = await db.execute(
+            sql,
+            {"query_embedding": query_embedding, "document_id": document_id, "limit": limit}
         )
-        chunks.append(chunk)
 
-    return chunks
+        chunks = []
+        for row in result:
+            chunk = DocumentChunk(
+                id=row.id,
+                document_id=row.document_id,
+                chunk_index=row.chunk_index,
+                content=row.content,
+                embedding=row.embedding,
+                page_number=row.page_number,
+                created_at=row.created_at,
+            )
+            chunks.append(chunk)
+
+        return chunks
+    else:
+        stmt = select(DocumentChunk).where(
+            DocumentChunk.document_id == document_id,
+            DocumentChunk.content.ilike(f"%{query}%")
+        ).limit(limit)
+        result = await db.execute(stmt)
+        return list(result.scalars().all())
 
 
 @router.delete("/{document_id}")

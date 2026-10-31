@@ -13,22 +13,25 @@ export function Providers({ children }: { children: ReactNode }) {
         <Toaster
           position="bottom-right"
           toastOptions={{
-            duration: 4000,
+            duration: 3500,
             style: {
-              background: '#1e293b',
-              color: '#f1f5f9',
-              border: '1px solid #334155',
+              background: '#18181b',
+              color: '#fafafa',
+              border: '1px solid #27272a',
+              fontSize: '13px',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
             },
             success: {
               iconTheme: {
-                primary: '#22c55e',
-                secondary: '#1e293b',
+                primary: '#10b981',
+                secondary: '#18181b',
               },
             },
             error: {
               iconTheme: {
-                primary: '#ef4444',
-                secondary: '#1e293b',
+                primary: '#f43f5e',
+                secondary: '#18181b',
               },
             },
           }}

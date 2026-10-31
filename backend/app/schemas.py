@@ -21,10 +21,16 @@ class UserLogin(BaseModel):
 class UserResponse(UserBase):
     id: int
     is_active: bool
+    memory_consent: bool = False
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    memory_consent: Optional[bool] = None
 
 
 class Token(BaseModel):

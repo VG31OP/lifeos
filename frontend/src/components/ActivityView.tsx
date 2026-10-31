@@ -1,7 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Activity, RefreshCw, Filter, ChevronDown, ChevronUp, CheckCircle, XCircle, AlertTriangle, Clock, Loader2 } from 'lucide-react';
+import {
+  Activity,
+  RefreshCw,
+  ChevronDown,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Code2,
+  Terminal,
+} from 'lucide-react';
 import { useExecutionStore } from '@/store';
 import { api } from '@/lib/api';
 import { ExecutionLog } from '@/types';
@@ -51,84 +60,89 @@ export function ActivityView() {
   };
 
   const getStatusIcon = (success: boolean | null, toolName: string | null) => {
-    if (toolName === null) return <Clock className="w-4 h-4 text-gray-400" />;
-    return success ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-500" />;
+    if (toolName === null) return <Clock className="w-4 h-4 text-zinc-400" />;
+    return success ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <XCircle className="w-4 h-4 text-rose-500" />;
   };
 
   const getToolLabel = (toolName: string | null) => {
-    if (!toolName) return 'Conversation';
+    if (!toolName) return 'Conversation Turn';
     return toolName.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
   };
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Activity</h2>
-          <p className="text-gray-500 dark:text-gray-400">Execution history and tool calls</p>
+          <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+            <Activity className="w-5 h-5 text-primary-500" />
+            <span>Execution Audit & Telemetry</span>
+          </h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+            Real-time audit log of LLM reasoning, planner steps, and autonomous tool executions
+          </p>
         </div>
         <button
           onClick={loadLogs}
           disabled={isLoading}
-          className="btn-secondary"
+          className="btn-secondary text-xs py-2 px-3.5 flex items-center self-start sm:self-auto"
         >
-          <RefreshCw className={cn('w-4 h-4 mr-2', isLoading && 'animate-spin')} />
-          Refresh
+          <RefreshCw className={cn('w-3.5 h-3.5 mr-1.5', isLoading && 'animate-spin')} />
+          <span>Refresh Feed</span>
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="card mb-6">
-        <div className="flex flex-col sm:flex-row gap-4">
+      {/* Filter Toolbar */}
+      <div className="card p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="input w-auto"
+            className="input text-xs w-auto py-1.5"
           >
-            <option value="all">All Status</option>
-            <option value="success">Success Only</option>
-            <option value="failed">Failed Only</option>
+            <option value="all">All Outcomes</option>
+            <option value="success">Success</option>
+            <option value="failed">Failed</option>
           </select>
           <select
             value={filterTool}
             onChange={(e) => setFilterTool(e.target.value)}
-            className="input w-auto"
+            className="input text-xs w-auto py-1.5"
           >
             <option value="all">All Tools</option>
-            {tools.map(tool => <option key={tool} value={tool}>{getToolLabel(tool)}</option>)}
+            {tools.map(tool => (
+              <option key={tool} value={tool}>{getToolLabel(tool)}</option>
+            ))}
           </select>
-          <div className="text-sm text-gray-500 dark:text-gray-400 self-center">
-            {filteredLogs.length} of {logs.length} entries
+          <div className="text-xs text-zinc-400 font-mono self-center sm:ml-auto">
+            Showing {filteredLogs.length} of {logs.length} logged runs
           </div>
         </div>
       </div>
 
-      {/* Log list */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Log Feed */}
+      <div className="flex-1 overflow-y-auto space-y-2.5">
         {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+          <div className="flex items-center justify-center h-48">
+            <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-primary-500" />
           </div>
         ) : filteredLogs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-center text-gray-500 dark:text-gray-400">
-            <Activity className="w-12 h-12 mb-4 opacity-50" />
-            <p className="text-lg">No activity yet</p>
-            <p className="text-sm">Execute tools or have conversations to see activity here</p>
+          <div className="flex flex-col items-center justify-center h-48 text-center text-zinc-400 dark:text-zinc-500 card">
+            <Activity className="w-10 h-10 mb-2.5 opacity-40 text-primary-500" />
+            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">No execution logs found</p>
+            <p className="text-xs text-zinc-500 mt-1">Ask LifeOS to perform actions in chat to generate audit events</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredLogs.map((log) => (
-              <ExecutionLogCard
-                key={log.id}
-                log={log}
-                isExpanded={expandedLogs.has(log.id)}
-                onToggle={() => toggleExpand(log.id)}
-                getStatusIcon={getStatusIcon}
-                getToolLabel={getToolLabel}
-              />
-            ))}
-          </div>
+          filteredLogs.map((log) => (
+            <ExecutionLogCard
+              key={log.id}
+              log={log}
+              isExpanded={expandedLogs.has(log.id)}
+              onToggle={() => toggleExpand(log.id)}
+              getStatusIcon={getStatusIcon}
+              getToolLabel={getToolLabel}
+            />
+          ))
         )}
       </div>
     </div>
@@ -149,37 +163,42 @@ function ExecutionLogCard({
   getToolLabel: (toolName: string | null) => string;
 }) {
   return (
-    <div className="card p-4 hover:shadow-md transition-shadow">
+    <div className="card p-3.5 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all">
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-3 text-left"
+        className="w-full flex items-center gap-3 text-left focus:outline-none"
       >
-        <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+        <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center bg-zinc-100 dark:bg-dark-800 border border-zinc-200 dark:border-zinc-700">
           {getStatusIcon(log.success, log.tool_name)}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-medium text-gray-900 dark:text-white">{getToolLabel(log.tool_name)}</span>
-            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+            <span className="font-mono text-xs font-semibold text-zinc-900 dark:text-white">
+              {getToolLabel(log.tool_name)}
+            </span>
+            <span className="text-[10px] font-mono text-zinc-400">
               {formatRelativeTime(log.created_at)}
             </span>
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 truncate mt-1">
-            {log.request ? `Request: ${log.request.slice(0, 100)}${log.request.length > 100 ? '...' : ''}` : 'No request recorded'}
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5 font-mono">
+            {log.request ? `Request: ${log.request}` : 'Direct system run'}
           </p>
         </div>
-        <ChevronDown className={cn('w-5 h-5 text-gray-400 transition-transform', isExpanded && 'rotate-180')} />
+        <ChevronDown className={cn('w-4 h-4 text-zinc-400 transition-transform', isExpanded && 'rotate-180')} />
       </button>
 
       {isExpanded && (
-        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800 space-y-4 animate-slide-down">
+        <div className="mt-3.5 pt-3.5 border-t border-zinc-200 dark:border-zinc-800 space-y-3 font-mono text-xs animate-slide-down">
           {log.planned_steps && log.planned_steps.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Planned Steps</p>
-              <ol className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+              <p className="text-[10px] uppercase font-semibold text-zinc-400 mb-1.5 flex items-center gap-1.5">
+                <Terminal className="w-3.5 h-3.5 text-primary-500" />
+                <span>Planned Steps</span>
+              </p>
+              <ol className="space-y-1 text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-dark-950 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800">
                 {log.planned_steps.map((step: any, idx: number) => (
                   <li key={idx} className="flex items-start gap-2">
-                    <span className="text-primary-600 dark:text-primary-400 font-mono">{idx + 1}.</span>
+                    <span className="text-primary-600 dark:text-primary-400">{idx + 1}.</span>
                     <span>{step.description || JSON.stringify(step)}</span>
                   </li>
                 ))}
@@ -189,8 +208,11 @@ function ExecutionLogCard({
 
           {log.tool_input && (
             <div>
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Tool Input</p>
-              <pre className="text-xs text-gray-600 dark:text-gray-400 overflow-x-auto p-3 rounded bg-gray-100 dark:bg-gray-800 max-h-64">
+              <p className="text-[10px] uppercase font-semibold text-zinc-400 mb-1.5 flex items-center gap-1.5">
+                <Code2 className="w-3.5 h-3.5 text-primary-500" />
+                <span>Tool Input Payload</span>
+              </p>
+              <pre className="text-zinc-700 dark:text-zinc-300 overflow-x-auto p-2.5 rounded-lg bg-zinc-50 dark:bg-dark-950 border border-zinc-200 dark:border-zinc-800 text-[11px] max-h-56">
                 {JSON.stringify(log.tool_input, null, 2)}
               </pre>
             </div>
@@ -198,33 +220,29 @@ function ExecutionLogCard({
 
           {log.tool_output && (
             <div>
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Tool Output</p>
-              <pre className="text-xs text-gray-600 dark:text-gray-400 overflow-x-auto p-3 rounded bg-gray-100 dark:bg-gray-800 max-h-64">
+              <p className="text-[10px] uppercase font-semibold text-zinc-400 mb-1.5 flex items-center gap-1.5">
+                <Code2 className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Tool Execution Result</span>
+              </p>
+              <pre className="text-zinc-700 dark:text-zinc-300 overflow-x-auto p-2.5 rounded-lg bg-zinc-50 dark:bg-dark-950 border border-zinc-200 dark:border-zinc-800 text-[11px] max-h-56">
                 {JSON.stringify(log.tool_output, null, 2)}
               </pre>
             </div>
           )}
 
           {log.error_message && (
-            <div className="p-3 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-              <p className="text-xs font-medium text-red-600 dark:text-red-400 mb-1">Error</p>
-              <p className="text-xs text-red-700 dark:text-red-300">{log.error_message}</p>
+            <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400">
+              <p className="text-[10px] font-semibold uppercase mb-1">Execution Error</p>
+              <p className="text-xs">{log.error_message}</p>
             </div>
           )}
 
-          {log.verification_result && (
-            <div>
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Verification</p>
-              <pre className="text-xs text-gray-600 dark:text-gray-400 overflow-x-auto p-3 rounded bg-gray-100 dark:bg-gray-800 max-h-64">
-                {JSON.stringify(log.verification_result, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-800">
-            <span>Created: {formatDateTime(log.created_at)}</span>
-            {log.completed_at && <span>Completed: {formatDateTime(log.completed_at)}</span>}
-            {log.conversation_id && <span>Conversation: #{log.conversation_id}</span>}
+          <div className="flex flex-wrap items-center gap-4 text-[10px] text-zinc-400 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+            <span>Timestamp: {formatDateTime(log.created_at)}</span>
+            {log.conversation_id && <span>Session: #{log.conversation_id}</span>}
+            <span className={log.success ? 'text-emerald-500' : 'text-rose-500'}>
+              Status: {log.success ? 'COMPLETED' : 'FAILED'}
+            </span>
           </div>
         </div>
       )}

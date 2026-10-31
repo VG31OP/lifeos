@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
 from app.auth import verify_password, get_password_hash, create_access_token, decode_access_token
-from app.schemas import UserCreate, UserLogin, UserResponse, Token, TokenData
+from app.schemas import UserCreate, UserLogin, UserResponse, UserUpdate, Token, TokenData
 from app.models import User
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from app.rate_limiter import limiter
@@ -25,8 +25,12 @@ async def get_current_user(
     payload = decode_access_token(token)
     if payload is None:
         raise credentials_exception
-    user_id: int = payload.get("sub")
+    user_id = payload.get("sub")
     if user_id is None:
+        raise credentials_exception
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
         raise credentials_exception
 
     result = await db.execute(select(User).where(User.id == user_id))
@@ -74,10 +78,26 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token = create_access_token(data={"sub": user.id})
+    access_token = create_access_token(data={"sub": str(user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.get("/me", response_model=UserResponse)
 async def read_me(current_user: User = Depends(get_current_active_user)):
+    return current_user
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    user_update: UserUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if user_update.full_name is not None:
+        current_user.full_name = user_update.full_name
+    if user_update.memory_consent is not None:
+        current_user.memory_consent = user_update.memory_consent
+    db.add(current_user)
+    await db.commit()
+    await db.refresh(current_user)
     return current_user

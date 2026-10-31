@@ -388,34 +388,50 @@ async def execute_save_memory(arguments: Dict[str, Any], user_id: int, db: Async
 async def execute_search_memories(arguments: Dict[str, Any], user_id: int, db: AsyncSession) -> ToolResult:
     try:
         query = arguments.get("query", "")
-        query_embedding = await ai_service.get_embedding(query)
-
-        from sqlalchemy import text
         memory_type = arguments.get("memory_type")
         limit = arguments.get("limit", 10)
 
-        sql = text("""
-            SELECT *, 1 - (embedding <=> :query_embedding) as similarity
-            FROM memories
-            WHERE user_id = :user_id
-            AND (:memory_type IS NULL OR memory_type = :memory_type)
-            ORDER BY embedding <=> :query_embedding
-            LIMIT :limit
-        """)
-
-        result = await db.execute(
-            sql,
-            {"query_embedding": query_embedding, "user_id": user_id, "memory_type": memory_type, "limit": limit}
-        )
+        from sqlalchemy import text, select
+        from app.config import settings
 
         memories = []
-        for row in result:
-            memories.append({
-                "id": row.id,
-                "content": row.content,
-                "memory_type": row.memory_type,
-                "similarity": float(row.similarity) if row.similarity else 0.0,
-            })
+        if "postgresql" in settings.DATABASE_URL:
+            query_embedding = await ai_service.get_embedding(query)
+
+            sql = text("""
+                SELECT *, 1 - (embedding <=> :query_embedding) as similarity
+                FROM memories
+                WHERE user_id = :user_id
+                AND (:memory_type IS NULL OR memory_type = :memory_type)
+                ORDER BY embedding <=> :query_embedding
+                LIMIT :limit
+            """)
+
+            result = await db.execute(
+                sql,
+                {"query_embedding": query_embedding, "user_id": user_id, "memory_type": memory_type, "limit": limit}
+            )
+
+            for row in result:
+                memories.append({
+                    "id": row.id,
+                    "content": row.content,
+                    "memory_type": row.memory_type,
+                    "similarity": float(row.similarity) if row.similarity else 0.0,
+                })
+        else:
+            stmt = select(Memory).where(Memory.user_id == user_id)
+            if memory_type:
+                stmt = stmt.where(Memory.memory_type == memory_type)
+            stmt = stmt.where(Memory.content.ilike(f"%{query}%")).limit(limit)
+            result = await db.execute(stmt)
+            for m in result.scalars().all():
+                memories.append({
+                    "id": m.id,
+                    "content": m.content,
+                    "memory_type": m.memory_type,
+                    "similarity": 1.0,
+                })
 
         return ToolResult(
             tool_call_id="",
@@ -452,43 +468,78 @@ async def execute_search_documents(arguments: Dict[str, Any], user_id: int, db: 
                     error="Document not found",
                 )
 
-        query_embedding = await ai_service.get_embedding(query)
-
-        from sqlalchemy import text
-
-        if document_id:
-            sql = text("""
-                SELECT *, 1 - (embedding <=> :query_embedding) as similarity
-                FROM document_chunks
-                WHERE document_id = :document_id
-                ORDER BY embedding <=> :query_embedding
-                LIMIT :limit
-            """)
-            params = {"query_embedding": query_embedding, "document_id": document_id, "limit": limit}
-        else:
-            sql = text("""
-                SELECT dc.*, d.filename, 1 - (dc.embedding <=> :query_embedding) as similarity
-                FROM document_chunks dc
-                JOIN documents d ON dc.document_id = d.id
-                WHERE d.user_id = :user_id
-                ORDER BY dc.embedding <=> :query_embedding
-                LIMIT :limit
-            """)
-            params = {"query_embedding": query_embedding, "user_id": user_id, "limit": limit}
-
-        result = await db.execute(sql, params)
+        from sqlalchemy import text, select
+        from app.config import settings
 
         chunks = []
-        for row in result:
-            chunks.append({
-                "id": row.id,
-                "document_id": row.document_id,
-                "chunk_index": row.chunk_index,
-                "content": row.content,
-                "page_number": row.page_number,
-                "similarity": float(row.similarity) if row.similarity else 0.0,
-                "document_filename": getattr(row, "filename", None),
-            })
+        if "postgresql" in settings.DATABASE_URL:
+            query_embedding = await ai_service.get_embedding(query)
+
+            if document_id:
+                sql = text("""
+                    SELECT *, 1 - (embedding <=> :query_embedding) as similarity
+                    FROM document_chunks
+                    WHERE document_id = :document_id
+                    ORDER BY embedding <=> :query_embedding
+                    LIMIT :limit
+                """)
+                params = {"query_embedding": query_embedding, "document_id": document_id, "limit": limit}
+            else:
+                sql = text("""
+                    SELECT dc.*, d.filename, 1 - (dc.embedding <=> :query_embedding) as similarity
+                    FROM document_chunks dc
+                    JOIN documents d ON dc.document_id = d.id
+                    WHERE d.user_id = :user_id
+                    ORDER BY dc.embedding <=> :query_embedding
+                    LIMIT :limit
+                """)
+                params = {"query_embedding": query_embedding, "user_id": user_id, "limit": limit}
+
+            result = await db.execute(sql, params)
+
+            for row in result:
+                chunks.append({
+                    "id": row.id,
+                    "document_id": row.document_id,
+                    "chunk_index": row.chunk_index,
+                    "content": row.content,
+                    "page_number": row.page_number,
+                    "similarity": float(row.similarity) if row.similarity else 0.0,
+                    "document_filename": getattr(row, "filename", None),
+                })
+        else:
+            if document_id:
+                stmt = select(DocumentChunk).where(
+                    DocumentChunk.document_id == document_id,
+                    DocumentChunk.content.ilike(f"%{query}%")
+                ).limit(limit)
+                res = await db.execute(stmt)
+                for c in res.scalars().all():
+                    chunks.append({
+                        "id": c.id,
+                        "document_id": c.document_id,
+                        "chunk_index": c.chunk_index,
+                        "content": c.content,
+                        "page_number": c.page_number,
+                        "similarity": 1.0,
+                        "document_filename": None,
+                    })
+            else:
+                stmt = select(DocumentChunk, Document.filename).join(Document, DocumentChunk.document_id == Document.id).where(
+                    Document.user_id == user_id,
+                    DocumentChunk.content.ilike(f"%{query}%")
+                ).limit(limit)
+                res = await db.execute(stmt)
+                for c, fname in res.all():
+                    chunks.append({
+                        "id": c.id,
+                        "document_id": c.document_id,
+                        "chunk_index": c.chunk_index,
+                        "content": c.content,
+                        "page_number": c.page_number,
+                        "similarity": 1.0,
+                        "document_filename": fname,
+                    })
 
         return ToolResult(
             tool_call_id="",
@@ -588,8 +639,13 @@ async def chat(
     ]
 
     # Get AI response
-    response = await ai_service.chat_completion(ai_messages)
-    tool_calls = ai_service.parse_tool_calls(response)
+    try:
+        response = await ai_service.chat_completion(ai_messages)
+        tool_calls = ai_service.parse_tool_calls(response)
+    except Exception as e:
+        ai_content = f"Message received: \"{request.message}\". (Note: AI service response unavailable - please ensure NEBIUS_API_KEY is configured in backend/.env: {str(e)})"
+        tool_calls = []
+        response = None
 
     # Execute tool calls
     execution_logs = []
@@ -644,9 +700,12 @@ async def chat(
             })
 
         # Get final response
-        final_response = await ai_service.chat_completion(ai_messages)
-        ai_content = final_response.choices[0].message.content or ""
-    else:
+        try:
+            final_response = await ai_service.chat_completion(ai_messages)
+            ai_content = final_response.choices[0].message.content or ""
+        except Exception as e:
+            ai_content = f"Tools executed successfully. (Follow-up summary error: {str(e)})"
+    elif response is not None:
         ai_content = response.choices[0].message.content or ""
 
     # Save assistant message
@@ -669,6 +728,25 @@ async def chat(
         tool_calls=[tc.model_dump() for tc in tool_calls] if tool_calls else None,
         execution_logs=execution_logs,
     )
+
+
+@router.post("/conversations", response_model=Dict[str, Any])
+async def create_conversation(
+    data: Optional[Dict[str, Any]] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    title = (data or {}).get("title") or "New Conversation"
+    conversation = Conversation(user_id=current_user.id, title=title)
+    db.add(conversation)
+    await db.commit()
+    await db.refresh(conversation)
+    return {
+        "id": conversation.id,
+        "title": conversation.title,
+        "created_at": conversation.created_at.isoformat(),
+        "updated_at": conversation.updated_at.isoformat(),
+    }
 
 
 @router.get("/conversations", response_model=List[Dict[str, Any]])

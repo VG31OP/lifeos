@@ -133,24 +133,28 @@ async def generic_exception_handler(request: Request, exc: Exception):
 
 
 # Include routers
-app.include_router(auth.router)
-app.include_router(tasks.router)
-app.include_router(memories.router)
-app.include_router(documents.router)
-app.include_router(chat.router)
+for prefix in ["", "/api"]:
+    app.include_router(auth.router, prefix=prefix)
+    app.include_router(tasks.router, prefix=prefix)
+    app.include_router(memories.router, prefix=prefix)
+    app.include_router(documents.router, prefix=prefix)
+    app.include_router(chat.router, prefix=prefix)
 
 
 @app.get("/")
+@app.get("/api")
 async def root():
     return {"message": "LifeOS API", "version": "0.1.0"}
 
 
 @app.get("/health")
+@app.get("/api/health")
 async def health():
     return {"status": "healthy"}
 
 
 @app.get("/health/db")
+@app.get("/api/health/db")
 async def health_db():
     """Check database connectivity."""
     from app.database import get_db
@@ -164,6 +168,7 @@ async def health_db():
 
 
 @app.get("/health/ai")
+@app.get("/api/health/ai")
 async def health_ai():
     """Check AI provider connectivity."""
     from app.ai_service import ai_service

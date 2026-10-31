@@ -42,21 +42,21 @@ export function formatRelativeTime(dateString: string): string {
 
 export function getPriorityColor(priority: string): string {
   switch (priority) {
-    case 'urgent': return 'text-red-400 bg-red-500/10 border-red-500/20';
-    case 'high': return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
-    case 'medium': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
-    case 'low': return 'text-green-400 bg-green-500/10 border-green-500/20';
-    default: return 'text-gray-400 bg-gray-500/10 border-gray-500/20';
+    case 'urgent': return 'text-rose-400 bg-rose-500/10 border-rose-500/20';
+    case 'high': return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
+    case 'medium': return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+    case 'low': return 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20';
+    default: return 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20';
   }
 }
 
 export function getStatusColor(status: string): string {
   switch (status) {
-    case 'completed': return 'text-green-400 bg-green-500/10 border-green-500/20';
-    case 'in_progress': return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
-    case 'pending': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
-    case 'cancelled': return 'text-gray-400 bg-gray-500/10 border-gray-500/20';
-    default: return 'text-gray-400 bg-gray-500/10 border-gray-500/20';
+    case 'completed': return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+    case 'in_progress': return 'text-teal-400 bg-teal-500/10 border-teal-500/20';
+    case 'pending': return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
+    case 'cancelled': return 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20';
+    default: return 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20';
   }
 }
 

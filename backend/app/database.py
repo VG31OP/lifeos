@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import text
 from app.config import settings
 from app.models import Base
 
@@ -27,8 +28,9 @@ async def get_db() -> AsyncSession:
 
 async def init_db():
     async with engine.begin() as conn:
-        # Create pgvector extension if not exists
-        await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+        # Create pgvector extension if PostgreSQL
+        if "postgresql" in str(engine.url):
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
 
 

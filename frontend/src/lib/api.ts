@@ -83,6 +83,11 @@ class ApiClient {
     return response.data;
   }
 
+  async updateMe(data: { full_name?: string; memory_consent?: boolean }): Promise<User> {
+    const response = await this.client.patch('/auth/me', data);
+    return response.data;
+  }
+
   // Chat
   async sendMessage(request: ChatRequest): Promise<ChatResponse> {
     const response = await this.client.post('/chat', request);
@@ -91,6 +96,11 @@ class ApiClient {
 
   async getConversations(): Promise<Conversation[]> {
     const response = await this.client.get('/chat/conversations');
+    return response.data;
+  }
+
+  async createConversation(title?: string): Promise<Conversation> {
+    const response = await this.client.post('/chat/conversations', { title: title || 'New Conversation' });
     return response.data;
   }
 

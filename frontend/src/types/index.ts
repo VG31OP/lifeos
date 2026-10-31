@@ -5,6 +5,7 @@ export interface User {
   email: string;
   full_name: string | null;
   is_active: boolean;
+  memory_consent?: boolean;
   created_at: string;
 }
 
